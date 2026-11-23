@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>인쇄 — Storyboarder Next</title>
+<style>
+  :root { --cols: 3; --rows: 2; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 11px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif; color: #111; background: #555; }
+  .controls { position: sticky; top: 0; z-index: 10; background: #202024; color: #eee; padding: 10px 16px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; font-size: 13px; }
+  .controls label { display: flex; gap: 6px; align-items: center; }
+  .controls select, .controls button { font: inherit; padding: 4px 8px; border-radius: 6px; border: 1px solid #555; background: #2a2a30; color: #eee; }
+  .controls button.primary { background: #ff6b3d; border-color: #ff6b3d; color: #fff; font-weight: 600; cursor: pointer; }
+  .page { background: #fff; width: 297mm; min-height: 210mm; margin: 12px auto; padding: 10mm 12mm; page-break-after: always; display: flex; flex-direction: column; }
+  .page.portrait { width: 210mm; min-height: 297mm; }
+  .page-head { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1.5px solid #111; padding-bottom: 4px; margin-bottom: 6mm; }
+  .page-head h1 { margin: 0; font-size: 15px; }
+  .grid { flex: 1; display: grid; grid-template-columns: repeat(var(--cols), 1fr); grid-template-rows: repeat(var(--rows), 1fr); gap: 6mm 5mm; }
+  .cell { display: flex; flex-direction: column; min-height: 0; }
+  .frame { position: relative; border: 1px solid #111; aspect-ratio: var(--ar); background: #fff; overflow: hidden; }
+  .frame img { width: 100%; height: 100%; object-fit: contain; display: block; }
+  .frame .label { position: absolute; left: 0; top: 0; background: #111; color: #fff; font: 700 10px/1 ui-monospace, monospace; padding: 3px 5px; }
+  .frame .flag { position: absolute; right: 0; top: 0; background: #4cc2ff; color: #fff; font: 700 9px/1 sans-serif; padding: 3px 5px; }
+  .meta { margin-top: 2mm; display: flex; justify-content: space-between; font-family: ui-monospace, monospace; font-size: 9.5px; color: #333; }
+  .text { font-size: 10.5px; margin-top: 1mm; overflow: hidden; }
+  .text p { margin: 0 0 1mm; white-space: pre-wrap; }
+  .text .dialogue { font-style: italic; padding-left: 4mm; }
+  .text .notes { color: #666; }
+  .page-foot { display: flex; justify-content: space-between; font-size: 9px; color: #666; border-top: 1px solid #ccc; padding-top: 2mm; margin-top: 4mm; }
+  .empty { padding: 40px; text-align: center; color: #ddd; }
+  @page { size: A4 landscape; margin: 0; }
+  @media print {
+    body { background: #fff; }
+    .controls { display: none; }
+    .page { margin: 0; width: auto; min-height: 0; height: 100vh; box-shadow: none; }
+  }
+</style>
+</head>
+<body>
+<div class="controls">
+  <strong id="title">인쇄</strong>
+  <label>레이아웃
+    <select id="layout">
+      <option value="3x2">3 × 2 (6 / 페이지)</option>
+      <option value="4x3">4 × 3 (12 / 페이지)</option>
+      <option value="2x2">2 × 2 (4 / 페이지, 큰 그림)</option>
+      <option value="2x1">2 × 1 (2 / 페이지, 프레젠테이션)</option>
+      <option value="1x1">1 × 1 (1 / 페이지)</option>
+    </select>
+  </label>
+  <label><input type="checkbox" id="show-notes" checked> 노트 표시</label>
+  <label><input type="checkbox" id="show-prompt"> 프롬프트 표시</label>
+  <label><input type="checkbox" id="portrait"> 세로 용지</label>
+  <button class="primary" id="print">인쇄 / PDF 저장</button>
+  <span style="opacity:.7">브라우저 인쇄 창에서 "배경 그래픽" 을 켜고, 여백은 "없음" 으로 두세요.</span>
+</div>
+<div id="pages"></div>
+<script type="module" src="/js/print.js"></script>
+</body>
+</html>

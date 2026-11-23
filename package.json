@@ -1,0 +1,32 @@
+{
+  "name": "storyboarder-next",
+  "version": "0.2.0",
+  "description": "기획 흐름 중심의 AI-ready 스토리보드 툴. wonderunit/storyboarder 의 정신과 파일 포맷을 계승한 Node.js(웹) 구현.",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "test": "node --test tests/",
+    "test:e2e": "node tests/e2e/smoke.js",
+    "lint": "node scripts/check-syntax.js"
+  },
+  "engines": {
+    "node": ">=18.17"
+  },
+  "keywords": [
+    "storyboard",
+    "storyboarder",
+    "previz",
+    "filmmaking",
+    "fountain",
+    "ai-video",
+    "higgsfield"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "playwright": "^1.49.1"
+  }
+}

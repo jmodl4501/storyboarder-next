@@ -1,0 +1,7 @@
+node_modules
+projects/*
+!projects/.gitkeep
+!projects/sample-*
+tests/e2e/output
+.env
+.git

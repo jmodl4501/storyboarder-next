@@ -1,0 +1,556 @@
+{
+  "version": "0.1.0",
+  "aspectRatio": 1.7777777777777777,
+  "fps": 24,
+  "defaultBoardTiming": 2000,
+  "boards": [
+    {
+      "uid": "XAJM8",
+      "url": "board-2-XAJM8.png",
+      "newShot": true,
+      "lastEdited": 1795362033660,
+      "layers": {
+        "pencil": {
+          "url": "board-2-XAJM8-pencil.png"
+        },
+        "ink": {
+          "url": "board-2-XAJM8-ink.png"
+        },
+        "tone": {
+          "url": "board-2-XAJM8-tone.png"
+        },
+        "notes": {
+          "url": "board-2-XAJM8-notes.png"
+        }
+      },
+      "number": 1,
+      "shot": "1A",
+      "time": 0,
+      "lineMileage": 13228.607628796737,
+      "dialogue": "",
+      "action": "S#1. 옥상 - 해질녘",
+      "notes": "마스터 샷. 노을 색온도 참고 링크 확인.",
+      "ext": {
+        "shotType": "EWS",
+        "cameraMove": "static",
+        "links": [
+          {
+            "url": "https://www.youtube.com/watch?v=aqz-KE-bpKQ&t=30s",
+            "provider": "youtube",
+            "title": "Big Buck Bunny 60fps 4K - Official Blender Foundation Short Film",
+            "description": "",
+            "thumbnail": "https://i.ytimg.com/vi/aqz-KE-bpKQ/hqdefault.jpg",
+            "author": "Blender",
+            "siteName": "YouTube",
+            "duration": null,
+            "embedUrl": "https://www.youtube.com/embed/aqz-KE-bpKQ?start=30",
+            "startSeconds": 30,
+            "fetchedAt": 1795360347430,
+            "id": "aqz-KE-bpKQ",
+            "note": "노을 그라데이션 / 색온도 레퍼런스"
+          }
+        ],
+        "prompt": "Establishing extreme wide shot of 옥상, 해질녘. Style: cinematic, natural light, 35mm film look, muted colors. Aspect ratio 16:9, cinematic composition, coherent character design, clean frame, no text.",
+        "videoPrompt": "Static locked-off camera. Establishing view of 옥상, 해질녘, ambient movement only (light, wind, people in the distance). Keep the composition, characters and lighting of the reference frame; 2s; smooth motion; 16:9. cinematic, natural light, 35mm film look, muted colors.",
+        "negativePrompt": "text, watermark, logo, subtitles, extra fingers, deformed hands, distorted face, blurry, low quality, flicker, jitter, duplicate frame",
+        "status": "ready",
+        "tags": [],
+        "aiJobs": []
+      },
+      "duration": 2000
+    },
+    {
+      "uid": "LD33L",
+      "url": "board-8-LD33L.png",
+      "newShot": false,
+      "lastEdited": 1795362057854,
+      "layers": {},
+      "number": 2,
+      "shot": "1B",
+      "time": 2000,
+      "lineMileage": 0,
+      "dialogue": "",
+      "action": "",
+      "notes": "",
+      "ext": {
+        "shotType": "",
+        "cameraMove": "",
+        "links": [],
+        "prompt": "",
+        "videoPrompt": "",
+        "negativePrompt": "",
+        "status": "draft",
+        "tags": [],
+        "aiJobs": []
+      }
+    },
+    {
+      "uid": "B7K2B",
+      "url": "board-3-B7K2B.png",
+      "newShot": false,
+      "lastEdited": 1795360262447,
+      "layers": {
+        "pencil": {
+          "url": "board-3-B7K2B-pencil.png"
+        },
+        "ink": {
+          "url": "board-3-B7K2B-ink.png"
+        },
+        "tone": {
+          "url": "board-3-B7K2B-tone.png"
+        }
+      },
+      "number": 3,
+      "shot": "1C",
+      "time": 4000,
+      "lineMileage": 7936.892678353871,
+      "dialogue": "",
+      "action": "도시의 스카이라인 위로 노을이 번진다. 민지가 난간에 기대어 서 있다.",
+      "notes": "",
+      "ext": {
+        "shotType": "WS",
+        "cameraMove": "dolly-in",
+        "links": [],
+        "prompt": "Wide shot of 도시의 스카이라인 위로 노을이 번진다. 민지가 난간에 기대어 서 있다. Style: cinematic, natural light, 35mm film look, muted colors. Aspect ratio 16:9, cinematic composition, coherent character design, clean frame, no text.",
+        "videoPrompt": "Slow dolly in, pushing toward the subject. 도시의 스카이라인 위로 노을이 번진다. 민지가 난간에 기대어 서 있다. Keep the composition, characters and lighting of the reference frame; 3.9s; smooth motion; 16:9. cinematic, natural light, 35mm film look, muted colors.",
+        "negativePrompt": "text, watermark, logo, subtitles, extra fingers, deformed hands, distorted face, blurry, low quality, flicker, jitter, duplicate frame",
+        "status": "ready",
+        "tags": [],
+        "aiJobs": []
+      },
+      "duration": 3900
+    },
+    {
+      "uid": "IVSMW",
+      "url": "board-4-IVSMW.png",
+      "newShot": false,
+      "lastEdited": 1795360273610,
+      "layers": {
+        "tone": {
+          "url": "board-4-IVSMW-tone.png"
+        },
+        "pencil": {
+          "url": "board-4-IVSMW-pencil.png"
+        },
+        "ink": {
+          "url": "board-4-IVSMW-ink.png"
+        }
+      },
+      "number": 4,
+      "shot": "1D",
+      "time": 7900,
+      "lineMileage": 3327.264880999527,
+      "dialogue": "민지: 여기서 보면 다 작아 보여.",
+      "action": "",
+      "notes": "",
+      "ext": {
+        "shotType": "MCU",
+        "cameraMove": "static",
+        "links": [],
+        "prompt": "Medium close-up. 민지 is speaking, expressive face, natural gesture. Style: cinematic, natural light, 35mm film look, muted colors. Aspect ratio 16:9, cinematic composition, coherent character design, clean frame, no text.",
+        "videoPrompt": "Static locked-off camera. 민지 speaks naturally (lip movement, no on-screen text). Keep the composition, characters and lighting of the reference frame; 2.4s; smooth motion; 16:9. cinematic, natural light, 35mm film look, muted colors.",
+        "negativePrompt": "text, watermark, logo, subtitles, extra fingers, deformed hands, distorted face, blurry, low quality, flicker, jitter, duplicate frame",
+        "status": "ready",
+        "tags": [],
+        "aiJobs": []
+      },
+      "duration": 2400
+    },
+    {
+      "uid": "T68WD",
+      "url": "board-5-T68WD.png",
+      "newShot": false,
+      "lastEdited": 1795360292291,
+      "layers": {
+        "tone": {
+          "url": "board-5-T68WD-tone.png"
+        },
+        "ink": {
+          "url": "board-5-T68WD-ink.png"
+        },
+        "pencil": {
+          "url": "board-5-T68WD-pencil.png"
+        }
+      },
+      "number": 5,
+      "shot": "1E",
+      "time": 10300,
+      "lineMileage": 4908.141606817641,
+      "dialogue": "준호: 그래서 올라온 거야?",
+      "action": "(다가오며)",
+      "notes": "",
+      "ext": {
+        "shotType": "OTS",
+        "cameraMove": "static",
+        "links": [],
+        "prompt": "Over-the-shoulder shot of (다가오며). 준호 is speaking, expressive face, natural gesture. Style: cinematic, natural light, 35mm film look, muted colors. Aspect ratio 16:9, cinematic composition, coherent character design, clean frame, no text.",
+        "videoPrompt": "Static locked-off camera. (다가오며). 준호 speaks naturally (lip movement, no on-screen text). Keep the composition, characters and lighting of the reference frame; 2.1s; smooth motion; 16:9. cinematic, natural light, 35mm film look, muted colors.",
+        "negativePrompt": "text, watermark, logo, subtitles, extra fingers, deformed hands, distorted face, blurry, low quality, flicker, jitter, duplicate frame",
+        "status": "ready",
+        "tags": [],
+        "aiJobs": []
+      },
+      "duration": 2100
+    },
+    {
+      "uid": "IJDUW",
+      "url": "board-6-IJDUW.png",
+      "newShot": false,
+      "lastEdited": 1795360304240,
+      "layers": {
+        "ink": {
+          "url": "board-6-IJDUW-ink.png"
+        },
+        "pencil": {
+          "url": "board-6-IJDUW-pencil.png"
+        }
+      },
+      "number": 6,
+      "shot": "1F",
+      "time": 12400,
+      "lineMileage": 3979.564258315626,
+      "dialogue": "",
+      "action": "민지가 대답 대신 손에 든 카메라를 들어 올린다.",
+      "notes": "카메라를 드는 동작에 맞춰 틸트 업",
+      "ext": {
+        "shotType": "MS",
+        "cameraMove": "tilt-up",
+        "links": [],
+        "prompt": "Medium shot of 민지가 대답 대신 손에 든 카메라를 들어 올린다. Style: cinematic, natural light, 35mm film look, muted colors. Aspect ratio 16:9, cinematic composition, coherent character design, clean frame, no text.",
+        "videoPrompt": "Slow tilt up. 민지가 대답 대신 손에 든 카메라를 들어 올린다. Keep the composition, characters and lighting of the reference frame; 2.9s; smooth motion; 16:9. cinematic, natural light, 35mm film look, muted colors.",
+        "negativePrompt": "text, watermark, logo, subtitles, extra fingers, deformed hands, distorted face, blurry, low quality, flicker, jitter, duplicate frame",
+        "status": "ready",
+        "tags": [],
+        "aiJobs": []
+      },
+      "duration": 2900
+    },
+    {
+      "uid": "9UYWV",
+      "url": "board-7-9UYWV.png",
+      "newShot": true,
+      "lastEdited": 1795360318382,
+      "layers": {
+        "ink": {
+          "url": "board-7-9UYWV-ink.png"
+        },
+        "tone": {
+          "url": "board-7-9UYWV-tone.png"
+        },
+        "pencil": {
+          "url": "board-7-9UYWV-pencil.png"
+        }
+      },
+      "number": 7,
+      "shot": "2A",
+      "time": 15300,
+      "lineMileage": 6958.376704538892,
+      "dialogue": "",
+      "action": "S#2. 골목 - 밤",
+      "notes": "네온 반사. 비 소리.",
+      "ext": {
+        "shotType": "WS",
+        "cameraMove": "static",
+        "links": [],
+        "prompt": "Establishing wide shot of 골목, 밤. Style: cinematic, natural light, 35mm film look, muted colors. Aspect ratio 16:9, cinematic composition, coherent character design, clean frame, no text.",
+        "videoPrompt": "Static locked-off camera. Establishing view of 골목, 밤, ambient movement only (light, wind, people in the distance). Keep the composition, characters and lighting of the reference frame; 2s; smooth motion; 16:9. cinematic, natural light, 35mm film look, muted colors.",
+        "negativePrompt": "text, watermark, logo, subtitles, extra fingers, deformed hands, distorted face, blurry, low quality, flicker, jitter, duplicate frame",
+        "status": "ready",
+        "tags": [],
+        "aiJobs": []
+      },
+      "duration": 2000
+    },
+    {
+      "uid": "Z5KNR",
+      "url": "board-8-Z5KNR.png",
+      "newShot": false,
+      "lastEdited": 1795360346895,
+      "layers": {
+        "ink": {
+          "url": "board-8-Z5KNR-ink.png"
+        },
+        "pencil": {
+          "url": "board-8-Z5KNR-pencil.png"
+        }
+      },
+      "number": 8,
+      "shot": "2B",
+      "time": 17300,
+      "lineMileage": 5507.981088040833,
+      "dialogue": "",
+      "action": "빗물이 고인 골목. 네온 간판이 물웅덩이에 비친다. 자전거 한 대가 지나간다.",
+      "notes": "",
+      "ext": {
+        "shotType": "FS",
+        "cameraMove": "pan-right",
+        "links": [],
+        "prompt": "Full shot of 빗물이 고인 골목. 네온 간판이 물웅덩이에 비친다. 자전거 한 대가 지나간다. Style: cinematic, natural light, 35mm film look, muted colors. Aspect ratio 16:9, cinematic composition, coherent character design, clean frame, no text.",
+        "videoPrompt": "Slow pan to the right. 빗물이 고인 골목. 네온 간판이 물웅덩이에 비친다. 자전거 한 대가 지나간다. Keep the composition, characters and lighting of the reference frame; 4.1s; smooth motion; 16:9. cinematic, natural light, 35mm film look, muted colors.",
+        "negativePrompt": "text, watermark, logo, subtitles, extra fingers, deformed hands, distorted face, blurry, low quality, flicker, jitter, duplicate frame",
+        "status": "ready",
+        "tags": [],
+        "aiJobs": []
+      },
+      "duration": 4100
+    }
+  ],
+  "ext": {
+    "title": "샘플 — 옥상 (Rooftop)",
+    "style": "cinematic, natural light, 35mm film look, muted colors",
+    "generator": "storyboarder-next",
+    "created": 1795360209012,
+    "updated": 1795365580753,
+    "aiTarget": "higgsfield",
+    "whiteboard": {
+      "version": 1,
+      "viewport": {
+        "x": 0,
+        "y": 0,
+        "zoom": 1
+      },
+      "nodes": [
+        {
+          "id": "ntitle1",
+          "type": "text",
+          "x": 0,
+          "y": -90,
+          "w": 420,
+          "h": 50,
+          "z": 1,
+          "createdAt": 1795365317530,
+          "text": "1막 — 옥상, 해질녘",
+          "size": 30,
+          "color": "#ECECF4"
+        },
+        {
+          "id": "nframeA",
+          "type": "frame",
+          "x": 0,
+          "y": 0,
+          "w": 1180,
+          "h": 640,
+          "z": 0,
+          "createdAt": 1795365317530,
+          "title": "레퍼런스 — 노을 · 색온도 · 카메라",
+          "color": "#FF7A4A"
+        },
+        {
+          "id": "nembed1",
+          "type": "embed",
+          "x": 40,
+          "y": 70,
+          "w": 440,
+          "h": 300,
+          "z": 3,
+          "createdAt": 1795365317530,
+          "note": "0:30~ 하늘 그라데이션 / 색온도 레퍼런스",
+          "provider": "youtube",
+          "url": "https://www.youtube.com/watch?v=aqz-KE-bpKQ&t=30s",
+          "embedUrl": "https://www.youtube.com/embed/aqz-KE-bpKQ?start=30",
+          "title": "Big Buck Bunny 60fps 4K - Official Blender Foundation Short Film",
+          "author": "Blender",
+          "thumbnail": "https://i.ytimg.com/vi/aqz-KE-bpKQ/hqdefault.jpg",
+          "startSeconds": 30,
+          "videoId": "aqz-KE-bpKQ"
+        },
+        {
+          "id": "nimg1",
+          "type": "image",
+          "x": 520,
+          "y": 70,
+          "w": 400,
+          "h": 225,
+          "z": 4,
+          "createdAt": 1795365317530,
+          "note": "무드보드 — 1A·3A 하늘 톤",
+          "src": "/projects/sample-rooftop/assets/3e27c016ce-sunset-moodboard.jpg",
+          "alt": "sunset-moodboard.jpg",
+          "natural": [
+            960,
+            540
+          ]
+        },
+        {
+          "id": "nnote1",
+          "type": "note",
+          "x": 960,
+          "y": 70,
+          "w": 190,
+          "h": 170,
+          "z": 5,
+          "createdAt": 1795365317530,
+          "text": "노을 색온도: 2800K → 4500K 로 식어 간다.\n하늘 그라데이션은 1A · 3A 공통.",
+          "color": "#FFE08A"
+        },
+        {
+          "id": "nnote2",
+          "type": "note",
+          "x": 960,
+          "y": 270,
+          "w": 190,
+          "h": 150,
+          "z": 6,
+          "createdAt": 1795365317530,
+          "text": "카메라: 1A 는 고정(마스터), 2A 부터 핸드헬드로 숨을 불어넣는다.",
+          "color": "#BDE0FE"
+        },
+        {
+          "id": "nnote3",
+          "type": "note",
+          "x": 520,
+          "y": 330,
+          "w": 220,
+          "h": 120,
+          "z": 7,
+          "createdAt": 1795365317530,
+          "text": "대사는 짧게. 침묵 2초 이상은 보드 길이로 표현.",
+          "color": "#CDEAC0"
+        },
+        {
+          "id": "nlink1",
+          "type": "link",
+          "x": 40,
+          "y": 400,
+          "w": 440,
+          "h": 110,
+          "z": 8,
+          "createdAt": 1795365317530,
+          "url": "https://www.blender.org/about/projects/",
+          "title": "Blender Open Movies — 원본 소스",
+          "description": "Big Buck Bunny 등 오픈 무비 프로젝트",
+          "siteName": "blender.org"
+        },
+        {
+          "id": "nnote4",
+          "type": "note",
+          "x": 760,
+          "y": 330,
+          "w": 190,
+          "h": 160,
+          "z": 9,
+          "createdAt": 1795365317531,
+          "text": "2A 핸드헬드 시작 → 3A 에서 다시 고정으로 돌아오며 안정감.",
+          "color": "#E4C1F9"
+        },
+        {
+          "id": "n8mtxeo",
+          "type": "frame",
+          "x": 0,
+          "y": 720,
+          "w": 988,
+          "h": 440,
+          "z": 10,
+          "createdAt": 1795365317544,
+          "title": "보드 카드 — 전체 컷 (더블클릭하면 에디터로)",
+          "color": "#FF7A4A"
+        },
+        {
+          "id": "npo8vtf",
+          "type": "board",
+          "x": 24,
+          "y": 788,
+          "w": 220,
+          "h": 164,
+          "z": 11,
+          "createdAt": 1795365317544,
+          "uid": "XAJM8"
+        },
+        {
+          "id": "naexaga",
+          "type": "board",
+          "x": 264,
+          "y": 788,
+          "w": 220,
+          "h": 164,
+          "z": 12,
+          "createdAt": 1795365317544,
+          "uid": "LD33L"
+        },
+        {
+          "id": "nxuvtip",
+          "type": "board",
+          "x": 504,
+          "y": 788,
+          "w": 220,
+          "h": 164,
+          "z": 13,
+          "createdAt": 1795365317544,
+          "uid": "B7K2B"
+        },
+        {
+          "id": "ni41cze",
+          "type": "board",
+          "x": 744,
+          "y": 788,
+          "w": 220,
+          "h": 164,
+          "z": 14,
+          "createdAt": 1795365317544,
+          "uid": "IVSMW"
+        },
+        {
+          "id": "njj057v",
+          "type": "board",
+          "x": 24,
+          "y": 972,
+          "w": 220,
+          "h": 164,
+          "z": 15,
+          "createdAt": 1795365317544,
+          "uid": "T68WD"
+        },
+        {
+          "id": "n8uuboa",
+          "type": "board",
+          "x": 264,
+          "y": 972,
+          "w": 220,
+          "h": 164,
+          "z": 16,
+          "createdAt": 1795365317544,
+          "uid": "IJDUW"
+        },
+        {
+          "id": "ncn1igk",
+          "type": "board",
+          "x": 504,
+          "y": 972,
+          "w": 220,
+          "h": 164,
+          "z": 17,
+          "createdAt": 1795365317544,
+          "uid": "9UYWV"
+        },
+        {
+          "id": "nwel6il",
+          "type": "board",
+          "x": 744,
+          "y": 972,
+          "w": 220,
+          "h": 164,
+          "z": 18,
+          "createdAt": 1795365317544,
+          "uid": "Z5KNR"
+        }
+      ],
+      "edges": [
+        {
+          "id": "eff6noz",
+          "from": "nnote2",
+          "to": "ncn1igk",
+          "label": "핸드헬드 시작",
+          "color": "#7C9CFF"
+        },
+        {
+          "id": "ekoi3xk",
+          "from": "nimg1",
+          "to": "npo8vtf",
+          "label": "하늘 톤",
+          "color": "#FF7A4A",
+          "style": "dashed"
+        }
+      ]
+    }
+  }
+}

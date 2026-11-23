@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>Storyboarder Next</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%231b1b1f'/%3E%3Crect x='10' y='16' width='44' height='28' rx='3' fill='none' stroke='%23ff6b3d' stroke-width='4'/%3E%3Cpath d='M18 38l10-12 7 8 5-5 8 9' fill='none' stroke='%23fff' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/css/app.css">
+<link rel="stylesheet" href="/css/whiteboard.css">
+</head>
+<body>
+
+<!-- ===================== 프로젝트 선택 화면 ===================== -->
+<section id="screen-projects" class="screen home">
+  <header class="home-header">
+    <div class="brand">
+      <svg viewBox="0 0 64 64" width="40" height="40" aria-hidden="true"><rect width="64" height="64" rx="12" fill="#1b1b1f"/><rect x="10" y="16" width="44" height="28" rx="3" fill="none" stroke="#ff6b3d" stroke-width="4"/><path d="M18 38l10-12 7 8 5-5 8 9" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <div>
+        <h1>Storyboarder <span>Next</span></h1>
+        <p class="tagline">기획의 흐름을 먼저 잡고, 그 위에 AI를 얹는다.</p>
+      </div>
+    </div>
+    <div class="home-links">
+      <a href="https://github.com/wonderunit/storyboarder" target="_blank" rel="noopener">원작 Storyboarder ↗</a>
+      <span id="home-version" class="muted"></span>
+    </div>
+  </header>
+
+  <div class="home-body">
+    <div class="home-side">
+      <div class="card hero-card">
+        <h2>레퍼런스를 모으고,<br>흐름을 그리고, AI로 잇는다.</h2>
+        <p>무한 화이트보드에 이미지·영상·유튜브를 붙여 레퍼런스를 정리하고, 보드로 샷을 설계한 뒤, 프롬프트와 영상 생성까지 한 흐름으로 이어집니다.</p>
+        <div class="feature-chips">
+          <span class="chip"><i></i>그리기 · 타임라인 · 애니매틱</span>
+          <span class="chip blue"><i></i>무한 화이트보드 (이미지·영상·임베드)</span>
+          <span class="chip green"><i></i>영상 분석 JSON / CSV / SRT 가져오기</span>
+          <span class="chip"><i></i>AI 프롬프트 · Higgsfield 영상</span>
+        </div>
+      </div>
+
+      <form id="new-project-form" class="card" autocomplete="off">
+        <h2>새 프로젝트</h2>
+        <label>이름
+          <input name="name" required maxlength="64" placeholder="예: 브랜드필름-1차">
+        </label>
+        <div class="row2">
+          <label>화면비
+            <select name="aspectRatio">
+              <option value="1.7777777777777777" selected>16:9 (유튜브 / TV)</option>
+              <option value="2.39">2.39:1 (시네마스코프)</option>
+              <option value="1.85">1.85:1 (플랫)</option>
+              <option value="1.3333333333333333">4:3</option>
+              <option value="1">1:1 (피드)</option>
+              <option value="0.5625">9:16 (쇼츠 / 릴스)</option>
+              <option value="0.8">4:5 (인스타그램)</option>
+            </select>
+          </label>
+          <label>FPS
+            <select name="fps">
+              <option value="24" selected>24</option>
+              <option value="25">25</option>
+              <option value="30">30</option>
+              <option value="60">60</option>
+            </select>
+          </label>
+        </div>
+        <label>기본 보드 길이 (ms)
+          <input name="defaultBoardTiming" type="number" value="2000" min="100" step="100">
+        </label>
+        <label>비주얼 스타일 <span class="muted">(AI 프롬프트에 공통으로 들어갑니다)</span>
+          <input name="style" value="cinematic, natural light, 35mm film look, muted colors">
+        </label>
+        <button type="submit" class="btn primary">프로젝트 만들기</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>프로젝트 <span id="project-count" class="muted"></span></h2>
+      <div id="project-list" class="project-list">
+        <p class="muted">불러오는 중…</p>
+      </div>
+      <p class="hint">
+        기존 Storyboarder 프로젝트 폴더(<code>이름/이름.storyboarder</code> + <code>images/</code>)를
+        <code>projects/</code> 아래에 복사하면 목록에 나타납니다. 그림은 레이어 파일을 그대로 읽습니다.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== 에디터 화면 ===================== -->
+<section id="screen-editor" class="screen editor" hidden>
+  <header class="topbar">
+    <div class="tb-group">
+      <button id="btn-home" class="btn ghost" title="프로젝트 목록으로">⌂</button>
+      <span id="project-title" class="project-title" title="프로젝트 설정에서 변경"></span>
+      <span id="save-status" class="save-status" data-state="saved">저장됨</span>
+    </div>
+
+    <div class="tb-group center">
+      <div class="seg" id="view-switch" role="tablist" aria-label="보기 전환">
+        <button data-view="boards" class="active" role="tab" title="보드 에디터 (Ctrl+1)">보드 <span class="k">1</span></button>
+        <button data-view="whiteboard" role="tab" title="레퍼런스 화이트보드 (Ctrl+2)">화이트보드 <span class="k">2</span></button>
+      </div>
+    </div>
+
+    <div class="tb-group right">
+      <div class="menu">
+        <button class="btn ghost" id="btn-import-menu" title="가져오기">가져오기 ▾</button>
+        <div class="menu-items" hidden>
+          <button data-import="reference">이미지 → 현재 보드의 레퍼런스 레이어<small>Figma / Krita / 렌더 이미지 한 장</small></button>
+          <button data-import="boards">이미지 → 새 보드로 추가<small>여러 장 선택 가능 · 캔버스에 드래그해도 됩니다</small></button>
+          <div class="menu-sep"></div>
+          <button id="btn-script">대본 / 텍스트 → 보드<small>INT./EXT., S#1, "이름: 대사" 를 인식</small></button>
+          <button id="btn-analysis">영상 분석 결과 → 보드<small>샷/자막 JSON · PySceneDetect CSV · SRT/VTT</small></button>
+        </div>
+      </div>
+      <button class="btn ghost" id="btn-play" title="재생 (Space)">▶ 재생</button>
+      <button class="btn ghost" id="btn-export" title="내보내기">내보내기</button>
+      <button class="btn ghost" id="btn-settings" title="프로젝트 설정">설정</button>
+      <button class="btn ghost" id="btn-help" title="단축키 (?)">?</button>
+    </div>
+  </header>
+
+  <main class="workspace">
+    <section class="canvas-area" id="canvas-area">
+      <div class="drawbar" role="toolbar" aria-label="그리기 도구 모음">
+    <div class="db-group tools" id="tool-buttons" role="toolbar" aria-label="그리기 도구">
+      <button class="tool" data-tool="light-pencil" title="연한 연필 (1)">
+        <svg viewBox="0 0 24 24"><path d="M4 20l4-1 10-10-3-3L5 16z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-dasharray="2 2"/></svg><span>1</span>
+      </button>
+      <button class="tool" data-tool="pencil" title="연필 (2)">
+        <svg viewBox="0 0 24 24"><path d="M4 20l4-1 10-10-3-3L5 16z M14 7l3 3" fill="none" stroke="currentColor" stroke-width="1.6"/></svg><span>2</span>
+      </button>
+      <button class="tool" data-tool="pen" title="펜 (3)">
+        <svg viewBox="0 0 24 24"><path d="M4 20l5-1.5L19 8.5a2 2 0 0 0-3-3L5.5 15z" fill="currentColor"/></svg><span>3</span>
+      </button>
+      <button class="tool" data-tool="brush" title="브러시 (4)">
+        <svg viewBox="0 0 24 24"><path d="M20 4c-4 1-9 6-10 10 2 0 4 2 3 4-1 2-5 2-7 1 1-1 1-3 2-4 1-5 7-10 12-11z" fill="currentColor"/></svg><span>4</span>
+      </button>
+      <button class="tool" data-tool="note-pen" title="노트 펜 — 내보내기 이미지에는 포함되지 않음 (5)">
+        <svg viewBox="0 0 24 24"><path d="M5 19l3-1 9-9-2-2-9 9z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M14 5l2 2" stroke="currentColor" stroke-width="1.6"/><path d="M4 22h16" stroke="currentColor" stroke-width="1.2"/></svg><span>5</span>
+      </button>
+      <button class="tool" data-tool="eraser" title="지우개 (6)">
+        <svg viewBox="0 0 24 24"><path d="M3 17l7-7 6 6-4 4H7z M10 10l5-5 6 6-5 5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg><span>6</span>
+      </button>
+    </div>
+
+    <div class="db-group" id="palette" title="색상 (우클릭/더블클릭으로 변경 · Alt+클릭으로 스포이드)"></div>
+
+    <div class="db-group sizes" id="size-buttons" title="브러시 크기 ( [ / ] )">
+      <button data-size="0" title="작게"><i style="width:4px;height:4px"></i></button>
+      <button data-size="1" title="보통"><i style="width:8px;height:8px"></i></button>
+      <button data-size="2" title="크게"><i style="width:13px;height:13px"></i></button>
+    </div>
+
+    <div class="db-group">
+      <button id="btn-undo" class="btn ghost" title="실행 취소 (Ctrl+Z)">↶</button>
+      <button id="btn-redo" class="btn ghost" title="다시 실행 (Ctrl+Shift+Z / Ctrl+Y)">↷</button>
+      <button id="btn-clear" class="btn ghost" title="현재 레이어 지우기 (Delete)">⌫</button>
+    </div>
+
+    <div class="db-group guides" id="guide-buttons">
+      <button data-guide="grid" title="그리드 (G)">#</button>
+      <button data-guide="center" title="센터 마크 (C)">+</button>
+      <button data-guide="thirds" title="3분할 (T)">⊞</button>
+      <button data-guide="safe" title="세이프 에어리어">▣</button>
+      <button id="btn-onion" title="어니언 스킨 — 이전 보드 겹쳐 보기 (O)">◐</button>
+    </div>
+
+    <div class="db-group ref">
+      <label title="레퍼런스 레이어 불투명도">Ref <input id="ref-opacity" type="range" min="0" max="1" step="0.05" value="1"></label>
+    </div>
+
+      </div>
+      <div class="stage" id="stage">
+        <canvas id="board-canvas" tabindex="-1"></canvas>
+        <canvas id="overlay-canvas"></canvas>
+        <div id="drop-hint" class="drop-hint" hidden>이미지를 놓으면 현재 보드의 레퍼런스 레이어로 들어갑니다</div>
+      </div>
+      <div class="canvas-footer">
+        <span id="board-info">—</span>
+        <span id="layer-info" class="muted"></span>
+      </div>
+    </section>
+
+    <aside class="inspector" id="inspector">
+      <div class="insp-head">
+        <span id="insp-shot" class="insp-shot">1A</span>
+        <span id="insp-tc" class="muted">00:00:00:00</span>
+        <label class="check"><input type="checkbox" id="f-newShot"> 새 샷</label>
+      </div>
+
+      <div class="row2">
+        <label>길이 (ms)
+          <input type="number" id="f-duration" min="100" step="100" placeholder="기본값">
+        </label>
+        <label>상태
+          <select id="f-status"></select>
+        </label>
+      </div>
+      <div class="row2">
+        <label>샷 타입 <select id="f-shotType"></select></label>
+        <label>카메라 <select id="f-cameraMove"></select></label>
+      </div>
+      <label>액션 / 장면 설명
+        <textarea id="f-action" rows="3" placeholder="무엇이 보이고, 무슨 일이 일어나는가"></textarea>
+      </label>
+      <label>대사
+        <textarea id="f-dialogue" rows="2" placeholder="이름: 대사"></textarea>
+      </label>
+      <label>노트
+        <textarea id="f-notes" rows="2" placeholder="연출 메모, 사운드, 전환 등"></textarea>
+      </label>
+      <label>태그
+        <input id="f-tags" placeholder="쉼표로 구분 (예: 오프닝, 제품컷)">
+      </label>
+
+      <section class="insp-section">
+        <h3>레퍼런스 링크 <span class="muted">(영상은 저장하지 않고 링크·썸네일만)</span></h3>
+        <form id="link-form" class="link-form" autocomplete="off">
+          <input id="link-url" type="url" placeholder="YouTube / Vimeo / 웹 URL (…&t=90s 가능)">
+          <button class="btn small" type="submit">추가</button>
+        </form>
+        <div id="link-list" class="link-list"></div>
+      </section>
+
+      <section class="insp-section">
+        <h3>AI 프롬프트</h3>
+        <div class="btn-row">
+          <button class="btn small" id="btn-gen-prompt" title="보드 정보(샷·카메라·액션·대사·스타일)로 프롬프트 생성 — 네트워크/토큰 사용 없음">프롬프트 생성</button>
+          <button class="btn small" id="btn-enhance-prompt" title="OpenAI 호환 텍스트 모델로 다듬기 (설정 필요)">AI로 다듬기</button>
+        </div>
+        <label>Image prompt <span class="muted">(키 프레임)</span>
+          <textarea id="f-prompt" rows="4" placeholder="‘프롬프트 생성’을 누르면 채워집니다"></textarea>
+        </label>
+        <label>Video prompt <span class="muted">(image-to-video, 첫 프레임 = 이 보드)</span>
+          <textarea id="f-videoPrompt" rows="4"></textarea>
+        </label>
+        <label>Negative
+          <input id="f-negativePrompt">
+        </label>
+        <div class="btn-row">
+          <button class="btn small" id="btn-copy-prompt" title="Image + Video 프롬프트 복사">복사</button>
+          <button class="btn small" id="btn-copy-payload" title="Higgsfield 요청 JSON 복사">Higgsfield JSON</button>
+          <button class="btn small accent" id="btn-video-gen" title="Higgsfield API 로 영상 생성 (설정 필요)">영상 생성</button>
+        </div>
+        <div id="ai-jobs" class="ai-jobs"></div>
+        <p id="ai-status-hint" class="hint"></p>
+      </section>
+    </aside>
+  </main>
+
+  <footer class="timeline">
+    <div class="timeline-bar">
+      <button id="btn-add-board" class="btn small" title="새 보드 (N)">+ 보드</button>
+      <button id="btn-dup-board" class="btn small" title="보드 복제 (D)">복제</button>
+      <button id="btn-del-board" class="btn small danger" title="보드 삭제 (Shift+Delete)">삭제</button>
+      <span class="sep"></span>
+      <button id="btn-prev" class="btn small ghost" title="이전 (←)">◀</button>
+      <button id="btn-next" class="btn small ghost" title="다음 (→)">▶</button>
+      <span class="spacer"></span>
+      <span id="timeline-summary" class="muted"></span>
+    </div>
+    <div class="timeline-strip" id="timeline-strip"></div>
+  </footer>
+
+  <section class="whiteboard-view" id="whiteboard-view" aria-label="레퍼런스 화이트보드"></section>
+</section>
+
+<div id="modal-root"></div>
+<div id="toast-root"></div>
+<input type="file" id="file-input" accept="image/*" multiple hidden>
+
+<script type="module" src="/js/app.js"></script>
+</body>
+</html>

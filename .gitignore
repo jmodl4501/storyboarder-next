@@ -1,0 +1,13 @@
+node_modules/
+.env
+npm-debug.log*
+.DS_Store
+Thumbs.db
+
+# 사용자 프로젝트 데이터 (샘플 프로젝트만 커밋)
+projects/*
+!projects/.gitkeep
+!projects/sample-*/
+
+# e2e 산출물
+tests/e2e/output/
