@@ -17,6 +17,8 @@ let dir;
 test.before(async () => {
   dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sbn-test-'));
   process.env.LINK_PREVIEW_OFFLINE = '1';
+  process.env.VIDEO_FETCH_ALLOW_PRIVATE = '1';
+  process.env.VIDEO_CACHE_DIR = path.join(dir, '.video-cache');
   delete process.env.HF_API_KEY_ID;
   delete process.env.AI_TEXT_API_KEY;
   const app = createApp({ projectsDir: dir });
@@ -392,6 +394,100 @@ test('assets: upload (json + raw), list, serve, type guard, delete, zip bundle, 
   assert.equal(priv.status, 400);
   const badUrl = await api('POST', `${p}/assets/from-url`, { url: 'ftp://example.com/x.png' });
   assert.equal(badUrl.status, 400);
+});
+
+test('video → scenes: capabilities, fetch job (direct url), cache serving, scene import (+keepVideo, whiteboard), streaming asset upload', async () => {
+  const caps = await api('GET', '/api/video/capabilities');
+  assert.equal(caps.status, 200);
+  assert.equal(typeof caps.data.ytdlp.available, 'boolean');
+  assert.equal(typeof caps.data.maxMb, 'number');
+  assert.equal(caps.data.vision.configured, false);
+
+  // a "remote" video served by our own test server: the project images route is fine as an http origin
+  const fake = Buffer.alloc(4096, 9);
+  fs.mkdirSync(path.join(dir, PID, 'images'), { recursive: true });
+  fs.writeFileSync(path.join(dir, PID, 'images', 'remote.webm'), fake);
+  const start = await api('POST', `/api/projects/${encodeURIComponent(PID)}/video/fetch`, { url: `${base}/projects/${encodeURIComponent(PID)}/images/remote.webm` });
+  assert.equal(start.status, 202, JSON.stringify(start.data));
+  const jobId = start.data.job.id;
+  let job;
+  for (let i = 0; i < 100; i++) {
+    job = (await api('GET', `/api/video/jobs/${jobId}`)).data.job;
+    if (job.status !== 'running') break;
+    await new Promise((r) => setTimeout(r, 30));
+  }
+  assert.equal(job.status, 'done', job.error);
+  assert.equal(job.result.size, 4096);
+  assert.equal(job.result.kind, 'direct');
+  const served = await fetch(base + job.result.url);
+  assert.equal(served.status, 200);
+  assert.equal((await served.arrayBuffer()).byteLength, 4096);
+  const ranged = await fetch(base + job.result.url, { headers: { range: 'bytes=0-99' } });
+  assert.equal(ranged.status, 206);
+  assert.equal((await api('GET', '/api/video/jobs/nope')).status, 404);
+  const badUrl = await api('POST', `/api/projects/${encodeURIComponent(PID)}/video/fetch`, { url: 'ftp://x/y.mp4' });
+  assert.equal(badUrl.status, 400);
+  const missingProject = await api('POST', '/api/projects/nope/video/fetch', { url: 'https://example.com/a.mp4' });
+  assert.equal(missingProject.status, 404);
+
+  // scenes → boards, keep the cached video as an asset, whiteboard cards + video card
+  const before = (await api('GET', `/api/projects/${encodeURIComponent(PID)}`)).data.project;
+  const imp = await api('POST', `/api/projects/${encodeURIComponent(PID)}/import/scenes`, {
+    scenes: [
+      { index: 0, start: 0, end: 2.5, action: '밝은 야외', shotType: 'WS', cameraMove: 'static', descriptionBy: 'heuristic', metrics: { brightness: 0.8, motion: 0.1 } },
+      { index: 1, start: 2.5, end: 5, action: '어두운 실내', transcript: [{ speaker: '', text: '여기야' }], shotType: 'MS', cameraMove: 'pan-right', descriptionBy: 'ai' },
+    ],
+    source: { kind: 'direct', url: `${base}/projects/x/remote.webm`, title: '리모트 테스트', fps: 24, width: 320, height: 180, duration: 5 },
+    afterUid: before.boards[before.boards.length - 1].uid,
+    addToWhiteboard: true,
+    keepVideo: true,
+    cacheJob: jobId,
+    mode: 'capture',
+  });
+  assert.equal(imp.status, 201, JSON.stringify(imp.data));
+  assert.equal(imp.data.created.length, 2);
+  assert.ok(imp.data.asset && /\/assets\/.+\.webm$/.test(imp.data.asset.url), 'video kept as asset');
+  assert.equal(imp.data.whiteboard.cards, 2);
+  assert.equal(imp.data.summary.withAi, 1);
+  const after = imp.data.project;
+  assert.equal(after.boards.length, before.boards.length + 2);
+  const b1 = after.boards.find((b) => b.uid === imp.data.created[0]);
+  assert.equal(b1.action, '밝은 야외');
+  assert.equal(b1.duration, 2500);
+  assert.equal(b1.ext.source.asset, imp.data.asset.url);
+  assert.equal(b1.ext.source.sceneId, 'S001');
+  assert.equal(b1.ext.source.metrics.brightness, 0.8);
+  const b2 = after.boards.find((b) => b.uid === imp.data.created[1]);
+  assert.equal(b2.dialogue, '여기야');
+  assert.equal(b2.ext.cameraMove, 'pan-right');
+  const lastImport = after.ext.imports[after.ext.imports.length - 1];
+  assert.equal(lastImport.kind, 'video-scenes');
+  assert.equal(lastImport.boards, 2);
+  const wb = (await api('GET', `/api/projects/${encodeURIComponent(PID)}/whiteboard`)).data.whiteboard;
+  assert.ok(wb.nodes.some((n) => n.type === 'video' && n.src === imp.data.asset.url), 'video card on whiteboard');
+  assert.equal(wb.nodes.filter((n) => n.type === 'board' && imp.data.created.includes(n.uid)).length, 2);
+  // the kept video survives asset GC (referenced by boards, not only by the whiteboard)
+  const assetsBefore = (await api('GET', `/api/projects/${encodeURIComponent(PID)}/assets`)).data.assets.map((a) => a.name);
+  assert.ok(assetsBefore.includes(imp.data.asset.name));
+  // keepVideo with a vanished job → 410
+  assert.equal((await api('DELETE', `/api/video/jobs/${jobId}`)).data.ok, true);
+  const gone = await api('POST', `/api/projects/${encodeURIComponent(PID)}/import/scenes`, { scenes: [{ start: 0, end: 1 }], source: {}, keepVideo: true, cacheJob: jobId });
+  assert.equal(gone.status, 410);
+  assert.equal((await api('POST', `/api/projects/${encodeURIComponent(PID)}/import/scenes`, { scenes: [], source: {} })).status, 400);
+
+  // streaming (non-JSON) upload of a video asset
+  const up = await fetch(`${base}/api/projects/${encodeURIComponent(PID)}/assets?name=clip.webm`, { method: 'POST', headers: { 'content-type': 'video/webm' }, body: Buffer.alloc(3000, 2) });
+  assert.equal(up.status, 201);
+  const upd = await up.json();
+  assert.equal(upd.asset.size, 3000);
+  assert.equal(upd.asset.mime, 'video/webm');
+  const badType = await fetch(`${base}/api/projects/${encodeURIComponent(PID)}/assets?name=x.exe`, { method: 'POST', headers: { 'content-type': 'application/octet-stream' }, body: Buffer.alloc(10) });
+  assert.equal(badType.status, 415);
+
+  // vision captions need a configured provider
+  const desc = await api('POST', '/api/ai/describe-scenes', { scenes: [{ index: 0, time: 0, duration: 1 }] });
+  assert.equal(desc.status, 503);
+  assert.equal((await api('POST', '/api/ai/describe-scenes', { scenes: [] })).status, 400);
 });
 
 test('static front-end files are served', async () => {

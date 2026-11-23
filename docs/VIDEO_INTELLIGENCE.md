@@ -155,6 +155,7 @@
 | 썸네일 경로 (`thumbnail`) | `board.ext.source.thumbnail` 에 보존 (이미지 자체는 가져오지 않음) |
 | 샷 레코드 전체 | `board.ext.source` 에 출처(video_id, shot_id, 프레임·초, fps, 파일 경로) 보존 → 역추적 가능 |
 | 타임라인 JSON | (예정) 타임라인 순서대로 보드 생성 — ROADMAP 참고 |
+| (분석기가 없을 때) 영상 URL/파일 자체 | **가져오기 ▾ → 영상 → 장면별 스토리보드** — 브라우저에서 Phase 1 의 "샷 분할 + 대표 프레임" 을 가볍게 수행하고, 비전 모델이 있으면 VLM 설명까지. 앱 안에 들어 있는 최소 분석기이며 정밀 파이프라인의 대체가 아니라 입구입니다 → [VIDEO_TO_STORYBOARD.md](VIDEO_TO_STORYBOARD.md) |
 
 반대 방향도 같습니다: Storyboarder Next 의 **샷 리스트 CSV / 프롬프트 팩 JSON** 은 편집 에이전트에
 "의도된 컷 구성"을 알려주는 입력으로 쓸 수 있습니다 (`shotType`, `cameraMove`, `duration`, `action`, `dialogue`).

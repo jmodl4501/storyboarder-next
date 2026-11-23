@@ -61,6 +61,14 @@ export const api = {
   importAssetFromUrl: (id, url) => request(`/api/projects/${enc(id)}/assets/from-url`, { method: 'POST', body: { url } }),
   deleteAsset: (id, name) => request(`/api/projects/${enc(id)}/assets/${enc(name)}`, { method: 'DELETE' }),
 
+  // video → scene storyboard (v0.3): the server only acquires the file, the browser does the analysis
+  videoCapabilities: () => request('/api/video/capabilities'),
+  fetchVideo: (id, payload) => request(`/api/projects/${enc(id)}/video/fetch`, { method: 'POST', body: payload }),
+  videoJob: (jobId) => request(`/api/video/jobs/${enc(jobId)}`),
+  deleteVideoJob: (jobId) => request(`/api/video/jobs/${enc(jobId)}`, { method: 'DELETE' }),
+  describeScenes: (payload) => request('/api/ai/describe-scenes', { method: 'POST', body: payload }),
+  importScenes: (id, payload) => request(`/api/projects/${enc(id)}/import/scenes`, { method: 'POST', body: payload }),
+
   aiStatus: () => request('/api/ai/status'),
   aiPrompt: (payload) => request('/api/ai/prompt', { method: 'POST', body: payload }),
   aiEnhance: (payload) => request('/api/ai/enhance', { method: 'POST', body: payload }),

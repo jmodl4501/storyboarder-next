@@ -6,6 +6,7 @@ import { Inspector } from './inspector.js';
 import { openPlayer } from './player.js';
 import { Whiteboard } from './whiteboard.js';
 import { modal, confirmDialog, toast, isModalOpen } from './ui.js';
+import { openVideoImport } from './videoImport.js';
 import {
   el, debounce, updateSceneTiming, boardDuration, totalDuration, boardImageSize, msToTimecode, msToClock,
   escapeHtml, aspectLabel, copyText, boardHasImage, boardImageName, LAYER_ORDER,
@@ -322,6 +323,17 @@ function setupEditor() {
 
   $('btn-script').addEventListener('click', () => openScriptImport());
   $('btn-analysis').addEventListener('click', () => openAnalysisImport());
+  $('btn-video').addEventListener('click', () => openVideoImport({
+    state,
+    currentBoard,
+    adoptProject,
+    flushAll,
+    ensureWhiteboardLoaded,
+    get whiteboard() {
+      return whiteboard;
+    },
+    surfaceSize: () => ({ width: surface.width, height: surface.height }),
+  }));
   $('btn-play').addEventListener('click', () => play());
   $('btn-export').addEventListener('click', () => openExport());
   $('btn-settings').addEventListener('click', () => openSettings());

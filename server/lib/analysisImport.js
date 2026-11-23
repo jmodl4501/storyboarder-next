@@ -526,4 +526,4 @@ function toBoards(parsed, { defaultBoardTiming = 2000, maxBoards = 500 } = {}) {
   return { boards, summary };
 }
 
-module.exports = { parse, toBoards, detectFormat, parseTime, mapShotType, mapCameraMove, tc };
+module.exports = { parse, toBoards, detectFormat, parseTime, mapShotType, mapCameraMove, tc, buildLink };

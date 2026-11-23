@@ -66,6 +66,25 @@
 - `addToWhiteboard: true` 면 만들어진 보드들을 화이트보드의 새 프레임 안에 카드로 깔고, `source.url` 이 있으면 임베드/링크 카드를 하나 더 둡니다.
 - 프로젝트 `ext.imports[]` 에 `{ at, kind: "analysis", format, videoId, boards, sourceUrl, sourcePath }` 가 기록되고, 각 보드의 `ext.source` 에 샷 출처가 남습니다.
 
+## 영상 → 장면별 스토리보드 (v0.3)
+
+장면 감지·프레임 캡처·스케치는 브라우저가 합니다(`public/js/sceneDetect.js`, `sketch.js`). 서버는 (1) 영상 파일을 가져와 same-origin 으로 서빙하고, (2) 비전 모델 호출을 중계하고, (3) 장면 목록을 보드로 바꿉니다. 설계는 [VIDEO_TO_STORYBOARD.md](VIDEO_TO_STORYBOARD.md).
+
+| 메서드 | 경로 | 본문 | 응답 |
+|---|---|---|---|
+| GET | `/api/video/capabilities` | | `{ ytdlp: { available, version }, ffmpeg: { available }, maxMb, vision: { configured, model, visionModel, … } }` |
+| POST | `/api/projects/:id/video/fetch` | `{ url, quality?: "480"\|"720"\|"1080" }` | `202 { job }` — 비동기. `job = { id, status: running\|done\|error, stage, progress, message, kind: youtube\|vimeo\|direct\|page, info, result, error }` |
+| GET | `/api/video/jobs/:id` | | `{ job }` — `done` 이면 `result = { url: "/cache/video/<job>/<file>", name, mime, size, info: { id, title, uploader, duration, fps, width, height, chapters[], … }, transcript: [{ start, end, text, speaker }], subtitlesLang, subtitlesAuto }` |
+| DELETE | `/api/video/jobs/:id` | | `{ ok }` — 캐시 파일 삭제 (6시간 뒤 자동 삭제) |
+| POST | `/api/ai/describe-scenes` | `{ scenes: [{ index, time, duration, image(data URL, ≤ ~650 KB), transcript?, hints? }] (≤ 10개), title?, style?, context? }` | `{ scenes: [{ index, action, description, shotType, cameraMove, mood, tags, figures[], shapes[], horizon } \| { index, missing: true }], model, usage }` — 비전 모델 미설정 시 `503` |
+| POST | `/api/projects/:id/import/scenes` | `{ scenes: [{ index, start, end, action, description?, dialogue?, notes?, shotType?, cameraMove?, mood?, tags?, descriptionBy?: ai\|heuristic\|manual, transcript?: [{ speaker, text }], metrics?, cutScore?, frame?: { start, end } }], source: { kind, url?, videoId?, title?, uploader?, fps?, width?, height?, duration?, fileName?, asset? }, afterUid?, replaceEmptyFirstBoard?, addToWhiteboard?, keepVideo?, cacheJob?, mode? }` | `201 { project, created: [uid…], summary, asset \| null, whiteboard: { frame, cards } \| null }` |
+
+- `video/fetch`: `http(s)` 만, 사설 IP/`localhost` 거부(`VIDEO_FETCH_ALLOW_PRIVATE=1` 로 해제 — 테스트용). 직접 파일 URL 은 스트리밍 다운로드(`VIDEO_MAX_MB`, 기본 1024 MB, 초과 시 작업 오류). YouTube/Vimeo/페이지 URL 은 **yt-dlp** 필요(`YTDLP_PATH` 또는 PATH; 없으면 `501`). 자막은 수동 > 자동 순으로 `ko,en` 등을 골라 `transcript` 로 변환. ffmpeg(`FFMPEG_PATH`) 이 있으면 화질 선택 시 영상+오디오 병합, 없으면 단일 파일 포맷.
+- 캐시 위치 `VIDEO_CACHE_DIR`(기본 OS 임시 폴더 `storyboarder-next-video/`), `/cache/video/<job>/<file>` 로 Range 요청 지원 서빙.
+- `import/scenes`: 장면은 시작 시간 순으로 정렬되고 최대 500개. 보드 길이 = 장면 길이. `keepVideo` + `cacheJob` 이면 캐시 파일을 프로젝트 `assets/` 로 복사하고(파일이 이미 사라졌으면 `410`), `keepVideo` + `source.asset`(클라이언트가 원시 업로드한 로컬 파일) 이면 그 에셋을 씁니다. 두 경우 모두 모든 보드의 `ext.source.asset` 이 채워지고, `addToWhiteboard` 면 프레임 위에 **영상 노드**(에셋) 또는 **임베드 노드**(YouTube 링크)가 놓입니다.
+- 프로젝트 `ext.imports[]` 에 `{ at, kind: "video-scenes", source, videoId, boards, sourceUrl, file, asset, mode, withAi }` 기록. 보드 `ext.source` 는 `{ kind: "video-scene", videoId, sceneId, startTime, endTime, startFrame, endFrame, fps, url, file, asset, descriptionBy, cutScore, metrics }`.
+- 보드 이미지는 생성 뒤 클라이언트가 `POST /boards/:uid/image` 로 레이어별로 올립니다(`reference` = 캡처, `fill` = 윤곽 스케치, `pencil` = 졸라맨/카메라 표시; `layerOpacity.reference = 0.35` 는 "둘 다" 모드).
+
 ## 화이트보드
 
 프로젝트당 하나, `project.ext.whiteboard` 에 저장됩니다(구조는 [FILE_FORMAT.md](FILE_FORMAT.md#extwhiteboard--레퍼런스-화이트보드)). 서버는 항상 정규화해서 돌려줍니다 — 모르는 타입의 노드, 끝점이 없는 연결선, 없는 보드를 가리키는 보드 카드는 버립니다.
@@ -88,9 +107,9 @@
 | DELETE | `/api/projects/:id/assets/:name` | | `{ ok: true }` |
 
 - 허용 확장자: `png jpg jpeg gif webp avif svg bmp mp4 webm mov m4v mp3 wav m4a ogg pdf json txt md csv`. 그 외는 `415`.
-- 파일 하나 최대 **60 MB**(`413`). 요청 본문 한도는 80 MB.
+- 파일 하나 최대 **60 MB**(`413`), 영상(`video/*`)은 `VIDEO_MAX_MB`(기본 1024 MB)까지 — 원시 바이트 업로드는 디스크로 스트리밍되므로 큰 영상도 메모리를 쓰지 않습니다. JSON 요청 본문 한도는 80 MB.
 - `from-url` 은 http(s) 만, 사설 IP/`localhost` 거부(SSRF 방지), 20초 타임아웃, 응답 `Content-Type` 이 `image/*`·`video/*` 가 아니면 `415`, 다운로드 실패는 `502`.
-- 에셋은 화이트보드 노드가 참조하는 동안 유지되고, 참조가 사라지면 다음 화이트보드 저장 때(10분 유예) 지워집니다.
+- 에셋은 화이트보드 노드 **또는 보드**(`ext.source.asset`, 링크, `ext.imports[].asset`)가 참조하는 동안 유지되고, 참조가 사라지면 다음 화이트보드 저장 때(10분 유예) 지워집니다.
 
 ## 레퍼런스 링크 미리보기
 
@@ -132,6 +151,7 @@
 - `/` 앱, `/print.html` 인쇄 시트
 - `/projects/<id>/images/<file>` 보드 이미지 (`?v=<lastEdited>` 로 캐시 무효화)
 - `/projects/<id>/assets/<file>` 화이트보드 에셋
+- `/cache/video/<job>/<file>` 서버가 가져온 영상(임시, Range 지원 — 브라우저 장면 분석용)
 - `/docs/<file>.md` 이 문서들 (앱의 도움말 링크가 가리킴, `text/markdown`)
 
 ## 예: curl 로 처음부터 끝까지

@@ -11,9 +11,14 @@ const promptBuilder = require('./lib/promptBuilder');
 const exporters = require('./lib/exporters');
 const ai = require('./lib/ai');
 const analysisImport = require('./lib/analysisImport');
+const sceneImport = require('./lib/sceneImport');
+const videoFetch = require('./lib/videoFetch');
 const whiteboard = require('./lib/whiteboard');
 const util = require('./lib/util');
 const pkg = require('../package.json');
+const fs = require('fs');
+const fsp = fs.promises;
+const os = require('os');
 
 /** Whiteboard uploads: media the browser can render inline + a few document types. */
 const ASSET_EXT = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'svg', 'bmp', 'mp4', 'webm', 'mov', 'm4v', 'mp3', 'wav', 'm4a', 'ogg', 'pdf', 'json', 'txt', 'md', 'csv']);
@@ -42,6 +47,8 @@ function createApp({ projectsDir } = {}) {
       setHeaders: (res) => res.setHeader('Cache-Control', 'no-cache'),
     }),
   );
+  // downloaded videos waiting to be analysed in the browser (see lib/videoFetch.js)
+  app.use('/cache/video', express.static(videoFetch.cacheRoot(), { dotfiles: 'deny', etag: true, index: false, setHeaders: (res) => res.setHeader('Cache-Control', 'private, max-age=3600') }));
 
   const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
@@ -222,30 +229,62 @@ function createApp({ projectsDir } = {}) {
     res.json({ assets: await store.listAssets(req.params.id) });
   }));
 
-  // JSON: { name, mime, dataUrl }  — or raw bytes with ?name=&mime= (Content-Type: application/octet-stream)
-  app.post('/api/projects/:id/assets', express.raw({ type: ['image/*', 'video/*', 'audio/*', 'application/octet-stream', 'application/pdf'], limit: '80mb' }), wrap(async (req, res) => {
-    let name;
-    let mime;
-    let buf;
-    if (Buffer.isBuffer(req.body)) {
-      name = String(req.query.name || 'upload');
-      mime = String(req.query.mime || req.headers['content-type'] || '').split(';')[0].trim();
-      buf = req.body;
-    } else {
+  /** Size limit per asset: videos get their own (bigger) budget. */
+  const assetLimitFor = (mime, name) => (/^video\//.test(mime) || videoFetch.VIDEO_EXT.has(String(name || '').split('.').pop().toLowerCase()) ? videoFetch.maxVideoBytes() : ASSET_MAX_BYTES);
+
+  /** Stream a request body to a temp file with a byte cap. Returns { file, size }. */
+  async function streamToTemp(req, maxBytes) {
+    const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'sbn-upload-'));
+    const file = path.join(dir, 'upload.bin');
+    let size = 0;
+    const ws = fs.createWriteStream(file);
+    try {
+      for await (const chunk of req) {
+        size += chunk.length;
+        if (size > maxBytes) throw new HttpError(413, `asset larger than ${Math.round(maxBytes / 1024 / 1024)} MB`);
+        if (!ws.write(chunk)) await new Promise((res) => ws.once('drain', res));
+      }
+    } catch (err) {
+      ws.destroy();
+      await fsp.rm(dir, { recursive: true, force: true });
+      throw err;
+    }
+    await new Promise((res) => ws.end(res));
+    return { file, size, cleanup: () => fsp.rm(dir, { recursive: true, force: true }).catch(() => {}) };
+  }
+
+  // JSON: { name, mime, dataUrl }  — or raw bytes (any non-JSON Content-Type, streamed to disk) with ?name=&mime=
+  app.post('/api/projects/:id/assets', wrap(async (req, res) => {
+    if (req.is('application/json')) {
       const body = req.body || {};
-      name = String(body.name || 'upload');
-      mime = String(body.mime || '');
+      const name = String(body.name || 'upload');
+      let mime = String(body.mime || '');
       const m = /^data:([^;,]+)?(;base64)?,(.*)$/s.exec(String(body.dataUrl || ''));
       if (!m) throw new HttpError(400, 'dataUrl (data:...;base64,...) is required');
       if (!mime) mime = m[1] || '';
-      buf = m[2] ? Buffer.from(m[3], 'base64') : Buffer.from(decodeURIComponent(m[3]), 'utf8');
+      const buf = m[2] ? Buffer.from(m[3], 'base64') : Buffer.from(decodeURIComponent(m[3]), 'utf8');
+      if (buf.length > assetLimitFor(mime, name)) throw new HttpError(413, `asset larger than ${Math.round(assetLimitFor(mime, name) / 1024 / 1024)} MB`);
+      const safeName = util.safeAssetName(name, mime);
+      const ext = safeName.split('.').pop();
+      if (!ASSET_EXT.has(ext)) throw new HttpError(415, `unsupported asset type ".${ext}"`);
+      const asset = await store.saveAsset(req.params.id, safeName, buf, mime || util.mimeFromName(safeName));
+      res.status(201).json({ asset });
+      return;
     }
-    if (buf.length > ASSET_MAX_BYTES) throw new HttpError(413, `asset larger than ${ASSET_MAX_BYTES / 1024 / 1024} MB`);
+    const name = String(req.query.name || 'upload');
+    const mime = String(req.query.mime || req.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
     const safeName = util.safeAssetName(name, mime);
     const ext = safeName.split('.').pop();
     if (!ASSET_EXT.has(ext)) throw new HttpError(415, `unsupported asset type ".${ext}"`);
-    const asset = await store.saveAsset(req.params.id, safeName, buf, mime || util.mimeFromName(safeName));
-    res.status(201).json({ asset });
+    await store.findBoardFile(req.params.id);
+    const tmp = await streamToTemp(req, assetLimitFor(mime, safeName));
+    try {
+      if (!tmp.size) throw new HttpError(400, 'empty upload');
+      const asset = await store.saveAssetFile(req.params.id, safeName, tmp.file, mime || util.mimeFromName(safeName));
+      res.status(201).json({ asset });
+    } finally {
+      tmp.cleanup();
+    }
   }));
 
   /** Download a remote image/video into the project's assets (so references survive link rot and can be drawn with). */
@@ -304,6 +343,88 @@ function createApp({ projectsDir } = {}) {
   app.delete('/api/projects/:id/assets/:name', wrap(async (req, res) => {
     await store.deleteAsset(req.params.id, req.params.name);
     res.json({ ok: true });
+  }));
+
+  // ---- video → scene storyboard ------------------------------------------
+  app.get('/api/video/capabilities', wrap(async (req, res) => {
+    const caps = await videoFetch.capabilities();
+    res.json({ ytdlp: { available: caps.ytdlp.available, version: caps.ytdlp.version }, ffmpeg: { available: caps.ffmpeg.available }, maxMb: caps.maxMb, vision: ai.status().text });
+  }));
+
+  /** Bring a video to the server (direct URL or yt-dlp) so the browser can read its frames. 202 + job polling. */
+  app.post('/api/projects/:id/video/fetch', wrap(async (req, res) => {
+    await store.findBoardFile(req.params.id);
+    const { url, quality } = req.body || {};
+    const job = await videoFetch.startFetch({ projectId: req.params.id, url, quality });
+    res.status(202).json({ job });
+  }));
+
+  app.get('/api/video/jobs/:id', wrap(async (req, res) => {
+    const job = videoFetch.getJob(req.params.id);
+    if (!job) throw new HttpError(404, 'no such job');
+    res.json({ job });
+  }));
+
+  app.delete('/api/video/jobs/:id', wrap(async (req, res) => {
+    res.json({ ok: await videoFetch.removeJob(req.params.id) });
+  }));
+
+  /** Ask the vision model to caption scene key frames (≤ 10 per call). */
+  app.post('/api/ai/describe-scenes', wrap(async (req, res) => {
+    const body = req.body || {};
+    const scenes = Array.isArray(body.scenes) ? body.scenes.slice(0, 10) : [];
+    if (!scenes.length) throw new HttpError(400, 'scenes[] is required');
+    for (const s of scenes) {
+      if (s.image && (typeof s.image !== 'string' || !s.image.startsWith('data:image/') || s.image.length > 900000)) throw new HttpError(400, 'scene.image must be a data URL under ~650 KB');
+    }
+    res.json(await ai.describeScenes({ scenes, title: body.title, style: body.style, context: body.context }));
+  }));
+
+  /** Create boards from browser-detected scenes (images are uploaded afterwards per board). */
+  app.post('/api/projects/:id/import/scenes', wrap(async (req, res) => {
+    const body = req.body || {};
+    const { data: current } = await store.load(req.params.id);
+    const { boards: out, summary, source } = sceneImport.toBoards({ scenes: body.scenes, source: body.source }, { defaultBoardTiming: current.defaultBoardTiming });
+    if (!out.length) throw new HttpError(400, 'no scenes to import');
+    // optionally keep the downloaded video as a project asset
+    let asset = null;
+    if (body.keepVideo && body.cacheJob) {
+      const jf = videoFetch.jobFile(String(body.cacheJob));
+      if (!jf) throw new HttpError(410, 'the downloaded video is no longer available — fetch it again');
+      const ext = jf.name.split('.').pop();
+      const stem = String(source.title || '').replace(/\.[A-Za-z0-9]{1,8}$/, ''); // direct URLs carry the file name as title
+      asset = await store.saveAssetFile(req.params.id, stem ? `${stem}.${ext}` : jf.name, jf.file, jf.mime);
+    } else if (body.keepVideo && source.asset) {
+      asset = { url: source.asset, name: decodeURIComponent(source.asset.split('/').pop()), mime: util.mimeFromName(source.asset) };
+    }
+    if (asset) for (const b of out) b.ext.source.asset = asset.url;
+    let wbResult = null;
+    const { data, created } = await store.insertBoards(req.params.id, out, {
+      afterUid: body.afterUid,
+      replaceEmptyFirstBoard: body.replaceEmptyFirstBoard,
+      mutate: (d, uids) => {
+        if (source.title && !d.ext.title) d.ext.title = source.title;
+        d.ext.imports = Array.isArray(d.ext.imports) ? d.ext.imports : [];
+        d.ext.imports.push({ at: util.nowIso(), kind: 'video-scenes', source: source.kind, videoId: source.videoId, boards: uids.length, sourceUrl: source.url, file: source.fileName, asset: asset ? asset.url : '', mode: String(body.mode || ''), withAi: summary.withAi });
+        if (body.addToWhiteboard) {
+          const wb = whiteboard.normalizeWhiteboard(d.ext.whiteboard);
+          wbResult = whiteboard.addBoardCards(wb, {
+            title: source.title || source.fileName || source.videoId || '영상 장면',
+            uids,
+            aspectRatio: d.aspectRatio,
+            notes: Object.fromEntries(out.map((b, i) => [uids[i], b.action || ''])),
+          });
+          const link = (out.find((b) => b.ext.links && b.ext.links.length) || { ext: { links: [] } }).ext.links[0];
+          if (asset) {
+            wb.nodes.push(whiteboard.normalizeNode({ type: 'video', x: wbResult.frame.x, y: wbResult.frame.y - 300, w: 440, h: 260, src: asset.url, name: asset.name, note: source.title || '' }));
+          } else if (link && link.embedUrl) {
+            wb.nodes.push(whiteboard.normalizeNode({ type: 'embed', x: wbResult.frame.x, y: wbResult.frame.y - 300, w: 440, h: 260, url: source.url, embedUrl: link.embedUrl.replace(/[?&]start=\d+/, ''), title: link.title || source.title || source.url, thumbnail: link.thumbnail || '', provider: link.provider || 'web' }));
+          }
+          d.ext.whiteboard = wb;
+        }
+      },
+    });
+    res.status(201).json({ project: data, created, summary, asset, whiteboard: wbResult ? { frame: wbResult.frame.id, cards: wbResult.cards.length } : null });
   }));
 
   // ---- link preview -----------------------------------------------------

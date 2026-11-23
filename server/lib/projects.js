@@ -251,7 +251,7 @@ class ProjectStore {
     }
     data.ext.whiteboard = wb;
     await this.write(id, data);
-    this.gcAssets(id, wb).catch(() => {});
+    this.gcAssets(id, wb, data).catch(() => {});
     return wb;
   }
 
@@ -279,6 +279,37 @@ class ProjectStore {
     return { name, url: `/projects/${encodeURIComponent(id)}/assets/${encodeURIComponent(name)}`, size: buf.length, mime: mime || util.mimeFromName(name) };
   }
 
+  /**
+   * Store a file that already exists on disk (streamed download / upload) as an
+   * asset: sha1 is computed by streaming, then the file is hard-linked or copied
+   * (never moved, the caller owns the source).  Returns { name, url, size, mime }.
+   */
+  async saveAssetFile(id, originalName, srcPath, mime = '') {
+    await this.findBoardFile(id);
+    const st = await fsp.stat(srcPath);
+    if (!st.size) throw new HttpError(400, 'empty file');
+    const hash = await new Promise((resolve, reject) => {
+      const h = crypto.createHash('sha1');
+      fs.createReadStream(srcPath).on('data', (d) => h.update(d)).on('end', () => resolve(h.digest('hex').slice(0, 10))).on('error', reject);
+    });
+    const dir = this.assetsDir(id);
+    await fsp.mkdir(dir, { recursive: true });
+    const name = `${hash}-${util.safeAssetName(originalName, mime)}`;
+    const file = path.join(dir, name);
+    try {
+      await fsp.access(file);
+    } catch {
+      try {
+        await fsp.link(srcPath, file);
+      } catch {
+        const tmp = `${file}.tmp`;
+        await fsp.copyFile(srcPath, tmp);
+        await fsp.rename(tmp, file);
+      }
+    }
+    return { name, url: `/projects/${encodeURIComponent(id)}/assets/${encodeURIComponent(name)}`, size: st.size, mime: mime || util.mimeFromName(name) };
+  }
+
   async listAssets(id) {
     await this.findBoardFile(id);
     let names = [];
@@ -301,9 +332,35 @@ class ProjectStore {
     await fsp.rm(path.join(this.assetsDir(id), name), { force: true });
   }
 
-  /** Remove asset files no node references any more (only files older than 10 min, to dodge upload races). */
-  async gcAssets(id, wb) {
+  /** Assets referenced by boards (imported video, link thumbnails…) — kept alive like whiteboard references. */
+  boardAssetRefs(data, id) {
+    const prefixes = [`/projects/${encodeURIComponent(id)}/assets/`, `/projects/${id}/assets/`];
+    const out = new Set();
+    const consider = (v) => {
+      if (typeof v !== 'string') return;
+      const p = prefixes.find((x) => v.startsWith(x));
+      if (p) out.add(decodeURIComponent(v.slice(p.length).split('?')[0]));
+    };
+    for (const b of (data && data.boards) || []) {
+      const ext = b.ext || {};
+      if (ext.source) consider(ext.source.asset);
+      for (const l of ext.links || []) consider(l.url);
+    }
+    for (const imp of (data && data.ext && data.ext.imports) || []) consider(imp.asset);
+    return out;
+  }
+
+  /** Remove asset files no node/board references any more (only files older than 10 min, to dodge upload races). */
+  async gcAssets(id, wb, data = null) {
     const keep = new Set(whiteboard.referencedAssets(wb, id));
+    if (!data) {
+      try {
+        data = (await this.load(id)).data;
+      } catch {
+        data = null;
+      }
+    }
+    for (const n of this.boardAssetRefs(data, id)) keep.add(n);
     const cutoff = Date.now() - 10 * 60 * 1000;
     for (const a of await this.listAssets(id)) {
       if (!keep.has(a.name) && a.mtime < cutoff) await fsp.rm(path.join(this.assetsDir(id), a.name), { force: true });

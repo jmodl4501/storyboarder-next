@@ -42,7 +42,7 @@ projects/
     "updated": 1795360347805,
     "aiTarget": "higgsfield",
     "whiteboard": { /* v0.2 — 레퍼런스 화이트보드, 아래 */ },
-    "imports": [                    // v0.2 — 가져오기 이력 (영상 분석 결과)
+    "imports": [                    // v0.2 — 가져오기 이력 (영상 분석 결과; v0.3 부터 kind: "video-scenes" 항목도 — source, file, asset, mode, withAi)
       { "at": "2026-11-22T07:10:00.000Z", "kind": "analysis", "format": "json", "videoId": "brand_film_v3",
         "boards": 5, "sourceUrl": "https://www.youtube.com/watch?v=…", "sourcePath": "" }
     ]
@@ -102,6 +102,9 @@ projects/
       "videoId": "brand_film_v3", "shotId": "SH002",
       "startFrame": 96, "endFrame": 240, "startTime": 4, "endTime": 10, "fps": 24,
       "file": "", "url": "https://www.youtube.com/watch?v=…", "thumbnail": ""
+      // v0.3 — 영상 → 장면별 스토리보드로 만든 보드는 kind: "video-scene", sceneId: "S003",
+      //        asset: "/projects/<id>/assets/…webm"(보관한 영상), descriptionBy: "ai"|"heuristic",
+      //        cutScore, metrics: { brightness, saturation, warmth, motion, panX, panY, zoom, gain, hue } (VIDEO_TO_STORYBOARD.md)
     },
     "aiJobs": [                     // 영상 생성 요청 이력 (파일은 저장하지 않음)
       {

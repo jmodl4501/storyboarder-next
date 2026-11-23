@@ -5,6 +5,12 @@
 - Node.js **18.17 이상** (20 LTS 권장). 네이티브 모듈 없음 → Windows / macOS / Linux / Raspberry Pi 모두 동일.
 - 런타임 의존성은 `express` 하나. `npm install` 은 수 초면 끝납니다.
 - 저장소 용량을 지키기 위해 브라우저(Playwright), 폰트, 외부 라이브러리는 **포함하지 않습니다**. 필요할 때 아래 설명대로 받으세요.
+- **선택**: `yt-dlp`(YouTube·Vimeo 주소에서 영상 가져오기) 와 `ffmpeg`(화질 선택 시 영상+오디오 병합, 자막 변환). 둘 다 없어도 앱은 완전히 동작합니다 — 직접 영상 파일 URL 과 로컬 파일 드롭은 항상 됩니다.
+  ```bash
+  pip install -U yt-dlp            # 또는 https://github.com/yt-dlp/yt-dlp/releases 의 단일 실행 파일
+  # ffmpeg: apt install ffmpeg / brew install ffmpeg / winget install ffmpeg, 또는 pip install imageio-ffmpeg 후 FFMPEG_PATH 지정
+  ```
+  PATH 에 없으면 `.env` 에 `YTDLP_PATH=/usr/local/bin/yt-dlp`, `FFMPEG_PATH=/usr/bin/ffmpeg` 를 적습니다. 확인: `GET /api/video/capabilities`.
 
 ## 2. 로컬 실행
 
@@ -97,6 +103,7 @@ story.example.com {
 
 - Higgsfield 등 영상 API 는 `PUBLIC_BASE_URL/projects/<id>/images/...` 를 **인증 없이** 가져가야 하므로, 인증 프록시를 쓴다면 `/projects/*/images/*` 경로만 예외로 열거나 생성할 때만 임시 터널(`cloudflared tunnel --url http://localhost:3000`)을 켜세요.
 - **화이트보드 업로드**(`POST /api/projects/:id/assets`)는 파일당 최대 60 MB, 요청 본문 80 MB 입니다. 리버스 프록시의 본문 한도도 맞추세요(nginx `client_max_body_size 80m;`, Caddy 는 기본 무제한). 업로드 파일은 `projects/<id>/assets/` 에 쌓이므로 디스크 여유를 보고, 참조가 끊긴 파일은 자동 정리됩니다.
+- **영상 가져오기**(`POST /api/projects/:id/video/fetch`)는 서버가 영상을 통째로 내려받습니다(`VIDEO_MAX_MB`, 기본 1024 MB; 캐시 `VIDEO_CACHE_DIR`, 6시간 뒤 자동 삭제). 공개 서버에서는 이 기능이 **서버를 다운로더로** 쓰게 하므로 인증 뒤에 두고 `VIDEO_MAX_MB` 를 낮추거나, 프록시에서 `/api/projects/*/video/fetch` 를 막으세요(로컬 파일 드롭은 서버를 거치지 않으므로 계속 됩니다). yt-dlp 는 대상 사이트의 약관을 따르는 범위에서 쓰세요.
 - **원격 이미지 가져오기**(`POST …/assets/from-url`, 화이트보드에 이미지 주소를 붙여 넣을 때)는 서버가 그 URL 로 나가서 내려받습니다(아웃바운드 트래픽 발생, 20초 타임아웃, 60 MB 한도, 사설 IP 차단). 서버가 외부로 나갈 수 없는 환경이면 이 기능만 실패하고 링크 카드로 남습니다. 완전히 막으려면 프록시에서 이 경로를 차단하세요.
 
 ## 6. 테스트

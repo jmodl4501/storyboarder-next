@@ -246,13 +246,48 @@ async function main() {
     assert.ok(b.dialogue.includes('NARRATOR'));
     assert.strictEqual(b.ext.links.length, 1);
   });
+  // ---- video → scene storyboard (browser-side detection on a small VP9 fixture; mp4/h264 may not decode in headless chromium)
+  let videoBoardCount = 0;
+  await step('video → scenes (file drop, sketch mode): detect ≥ 4 scenes, boards + layers + asset', async () => {
+    const before = await page.evaluate(() => window.__sbn.state.project.boards.length);
+    await page.click('#btn-import-menu');
+    await page.click('#btn-video');
+    await page.waitForSelector('.modal.full');
+    await page.setInputFiles('.modal.full input[type=file]', path.join(__dirname, 'fixtures', 'scenes.webm'));
+    await page.waitForSelector('.vi-options');
+    await page.check('.vi-mode input[value=sketch]');
+    await page.click('.vi-scan .btn.primary');
+    await page.waitForFunction(() => /완료/.test(document.querySelector('.vi-bartext').textContent), null, { timeout: 60000 });
+    const scan = await page.evaluate(() => ({ n: window.__sbnLastScan.scenes.length, cams: window.__sbnLastScan.scenes.map((s) => s.heur.cameraMove) }));
+    assert.ok(scan.n >= 4 && scan.n <= 5, `expected 4–5 scenes, got ${scan.n}`);
+    assert.ok(scan.cams.includes('pan-right'), `pan should be recognised (${scan.cams.join(',')})`);
+    await page.screenshot({ path: path.join(OUT, '10-video-scenes.png') });
+    await page.click('.modal-foot button.primary');
+    await page.waitForSelector('.modal.full', { state: 'detached', timeout: 90000 });
+    await page.waitForFunction((n) => window.__sbn.state.project.boards.length >= n + 4, before, { timeout: 30000 });
+    const r = await page.evaluate(async () => {
+      const boards = window.__sbn.state.project.boards.filter((b) => b.ext.source && b.ext.source.kind === 'file');
+      const assets = (await (await fetch(`/api/projects/${encodeURIComponent(window.__sbn.state.projectId)}/assets`)).json()).assets;
+      return { boards: boards.map((b) => ({ action: b.action, notes: b.notes, layers: Object.keys(b.layers || {}), src: b.ext.source, cam: b.ext.cameraMove })), assets };
+    });
+    assert.ok(r.boards.length >= 4);
+    assert.ok(r.boards.every((b) => b.layers.includes('fill') && b.layers.includes('pencil')), 'sketch boards need fill + pencil layers');
+    assert.ok(r.boards.every((b) => b.action && /\[S\d{3}\]/.test(b.notes)), 'every board carries a description + scene id');
+    assert.ok(r.boards.some((b) => b.cam === 'pan-right'));
+    assert.ok(r.assets.some((a) => a.name.endsWith('.webm')), 'the dropped video is kept as an asset');
+    assert.ok(r.boards.every((b) => b.src.asset && b.src.startTime != null && b.src.endTime > b.src.startTime));
+    videoBoardCount = r.boards.length;
+    await page.screenshot({ path: path.join(OUT, '11-video-board.png') });
+  });
+
   await step('whiteboard: open, cards present, note + embed + image, edge, save', async () => {
     await page.click('#view-switch [data-view=whiteboard]');
     await page.waitForFunction(() => window.__sbn.state.view === 'whiteboard' && window.__sbn.state.wbLoadedFor);
     await page.waitForTimeout(400);
     const types = await page.evaluate(() => window.__sbn.whiteboard.data.nodes.map((n) => n.type));
-    assert.ok(types.filter((t) => t === 'board').length === 5, `expected 5 board cards, got ${types}`);
+    assert.ok(types.filter((t) => t === 'board').length === 5 + videoBoardCount, `expected ${5 + videoBoardCount} board cards, got ${types}`);
     assert.ok(types.includes('frame') && types.includes('embed'));
+    assert.ok(types.includes('video'), 'the imported video should sit on the whiteboard as a video node');
     // look at an empty region, then double-click to create a sticky note and type into it
     await page.evaluate(() => window.__sbn.whiteboard.fitTo([{ x: 5000, y: 5000, w: 1200, h: 800 }]));
     const vp = await page.locator('.wb-viewport').boundingBox();

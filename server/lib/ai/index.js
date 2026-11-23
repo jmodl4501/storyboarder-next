@@ -44,6 +44,11 @@ async function enhance({ board, project, instructions }, opts = {}) {
   return text.enhancePrompt({ board, project, draft: d.draft, instructions }, opts);
 }
 
+/** Vision model looks at scene key frames → Korean captions + stick-figure layouts. */
+async function describeScenes(input, opts = {}) {
+  return text.describeScenes(input, opts);
+}
+
 async function submitVideo({ projectId, board, project, endpoint, imageUrl, prompt, extra }, opts = {}) {
   const url = imageUrl || publicImageUrl(projectId, board);
   const d = draftFor(board, project);
@@ -85,4 +90,4 @@ async function pollVideo(job, opts = {}) {
   return { job: next, raw: data };
 }
 
-module.exports = { status, publicImageUrl, draftFor, enhance, submitVideo, pollVideo, providers: { text, higgsfield } };
+module.exports = { status, publicImageUrl, draftFor, enhance, describeScenes, submitVideo, pollVideo, providers: { text, higgsfield } };
