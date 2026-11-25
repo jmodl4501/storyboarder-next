@@ -32,6 +32,14 @@ export const api = {
   deleteBoard: (id, uid) => request(`/api/projects/${enc(id)}/boards/${enc(uid)}`, { method: 'DELETE' }),
   reorderBoards: (id, order) => request(`/api/projects/${enc(id)}/boards/reorder`, { method: 'POST', body: { order } }),
   saveBoardImage: (id, uid, payload) => request(`/api/projects/${enc(id)}/boards/${enc(uid)}/image`, { method: 'POST', body: payload }),
+  uploadBoardReference: async (id, uid, file) => {
+    const ext = String(file.name || '').split('.').pop().toLowerCase();
+    const mime = file.type || ({ jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif' }[ext]) || 'image/jpeg';
+    const res = await fetch(`/api/projects/${enc(id)}/boards/${enc(uid)}/reference`, { method: 'POST', headers: { 'content-type': mime }, body: file });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw Object.assign(new Error(data.error || res.statusText), { status: res.status });
+    return data.board;
+  },
 
   parseScript: (payload) => request('/api/script/parse', { method: 'POST', body: payload }),
   importScript: (id, payload) => request(`/api/projects/${enc(id)}/script`, { method: 'POST', body: payload }),

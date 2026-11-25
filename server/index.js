@@ -116,6 +116,13 @@ function createApp({ projectsDir } = {}) {
     res.json({ board });
   }));
 
+  app.post('/api/projects/:id/boards/:uid/reference', express.raw({ type: () => true, limit: '20mb' }), wrap(async (req, res) => {
+    const mime = String(req.get('content-type') || '').split(';')[0].toLowerCase();
+    if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(mime)) throw new HttpError(415, `unsupported reference image type "${mime || 'unknown'}"`);
+    const board = await store.saveBoardReference(req.params.id, req.params.uid, req.body, mime);
+    res.status(201).json({ board });
+  }));
+
   // ---- script import ----------------------------------------------------
   app.post('/api/script/parse', (req, res) => {
     const { text, granularity, defaultBoardTiming } = req.body || {};

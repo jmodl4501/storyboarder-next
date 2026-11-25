@@ -29,6 +29,7 @@
 | POST | `/api/projects/:id/boards/:uid/duplicate` | | `201 { project, created }` 레이어 파일도 복사 |
 | DELETE | `/api/projects/:id/boards/:uid` | | `{ project, index }` 이미지 파일도 삭제. 마지막 보드를 지우면 빈 보드가 새로 생김 |
 | POST | `/api/projects/:id/boards/:uid/image` | 아래 | `{ board }` |
+| POST | `/api/projects/:id/boards/:uid/reference` | 원시 이미지 바이트 (`image/jpeg/png/webp/gif`, ≤20MB) | `201 { board }` |
 
 이미지 업로드 본문:
 
@@ -54,7 +55,7 @@
 
 ## 영상 분석 결과 → 보드
 
-분석 JSON · PySceneDetect CSV · SRT · WebVTT 를 보드로 변환합니다. 형식과 필드 규칙은 [ANALYSIS_IMPORT.md](ANALYSIS_IMPORT.md).
+스토리보드 Markdown · 분석 JSON · PySceneDetect CSV · SRT · WebVTT 를 보드로 변환합니다. 형식과 필드 규칙은 [ANALYSIS_IMPORT.md](ANALYSIS_IMPORT.md).
 
 | 메서드 | 경로 | 본문 | 응답 |
 |---|---|---|---|

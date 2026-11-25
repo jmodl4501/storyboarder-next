@@ -47,8 +47,53 @@ test('detectFormat', () => {
   assert.equal(ai.detectFormat('Scene Number,Start Frame,Start Timecode\n1,1,00:00:00.000'), 'scenedetect-csv');
   assert.equal(ai.detectFormat('1\n00:00:01,000 --> 00:00:03,500\nhello'), 'srt');
   assert.equal(ai.detectFormat('WEBVTT\n\n00:00.000 --> 00:02.000\nhi'), 'vtt');
+  assert.equal(ai.detectFormat('# Film\n\n### 장면 0001 · 00:00:00.000–00:00:02.000 · Intro'), 'storyboard-markdown');
   assert.equal(ai.detectFormat('   '), 'empty');
   assert.equal(ai.detectFormat('just some prose'), 'unknown');
+});
+
+test('storyboard Markdown → timed boards with image refs, bilingual dialogue and analysis notes', () => {
+  const md = `# Imported Film
+
+- 원본: [YouTube 영상](https://www.youtube.com/watch?v=abc123)
+- 재생시간: 00:00:05
+- 분석 소스: 1280×720, 24 fps
+
+### 장면 0001 · 00:00:00.000–00:00:02.500 · 오프닝
+
+![장면](scenes/scene_0001.jpg)
+
+- 화면: 도시 위로 해가 뜬다.
+- 분석: 설정 숏으로 장소와 분위기를 제시한다.
+
+**한국어 번역**
+> 아침이 시작됩니다.
+
+**English · 자동 자막**
+> Morning begins.
+
+### 장면 0002 · 00:00:02.500–00:00:05.000 (2.5초)
+
+![장면](scenes/scene_0002.jpg)
+
+- 화면: 인물이 창문을 연다.
+- 분석: 행동으로 본론을 시작한다.
+> 안녕하세요.
+`;
+  const parsed = ai.parse(md);
+  assert.equal(parsed.format, 'storyboard-markdown');
+  assert.equal(parsed.meta.title, 'Imported Film');
+  assert.equal(parsed.meta.fps, 24);
+  assert.equal(parsed.shots.length, 2);
+  assert.equal(parsed.shots[0].thumbnail, 'scenes/scene_0001.jpg');
+  assert.equal(parsed.shots[0].transcriptText, '한국어: 아침이 시작됩니다.\nEnglish: Morning begins.');
+  const { boards, summary } = ai.toBoards(parsed);
+  assert.equal(summary.format, 'storyboard-markdown');
+  assert.equal(boards.length, 2);
+  assert.equal(boards[0].duration, 2500);
+  assert.equal(boards[0].action, '도시 위로 해가 뜬다.');
+  assert.ok(boards[0].notes.includes('설정 숏으로 장소와 분위기를 제시한다.'));
+  assert.deepEqual(boards[0].ext.tags, ['markdown-import', '오프닝']);
 });
 
 test('JSON: shots + transcript → boards with timing, mapping, links and provenance', () => {

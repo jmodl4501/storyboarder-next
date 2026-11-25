@@ -39,6 +39,10 @@ npm run dev              # 파일 변경 시 자동 재시작 (node --watch)
 3. Apple Pencil / S Pen 필압이 적용됩니다. 손바닥 오인식이 있으면 `설정 → 터치로도 그리기` 해제.
 4. 홈 화면에 추가(PWA 처럼 전체 화면)해 두면 편합니다. 방화벽이 3000 포트를 막고 있지 않은지 확인.
 
+### GitHub Codespaces
+
+**Code → Codespaces → Create codespace on main**으로 생성합니다. `.devcontainer`가 `npm ci`와 서버 시작을 실행하며, 비공개 포트 3000 Preview가 자동으로 열립니다. 로그는 `/tmp/storyboarder-next/server.log`입니다.
+
 ## 3. 상시 실행 (PM2 / systemd)
 
 ```bash

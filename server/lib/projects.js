@@ -466,6 +466,27 @@ class ProjectStore {
 
   // ---- images -----------------------------------------------------------
 
+  async saveBoardReference(id, uid, buffer, mime = 'image/jpeg') {
+    const { data } = await this.load(id);
+    const board = data.boards.find((b) => b.uid === uid);
+    if (!board) throw new HttpError(404, 'board not found');
+    if (!Buffer.isBuffer(buffer) || !buffer.length) throw new HttpError(400, 'image body is required');
+    const ext = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif' }[String(mime).split(';')[0].toLowerCase()];
+    if (!ext) throw new HttpError(415, `unsupported reference image type "${mime}"`);
+    const imgDir = this.imagesDir(id);
+    await fsp.mkdir(imgDir, { recursive: true });
+    const stem = String(board.url || `board-${board.number}-${board.uid}.png`).replace(/\.png$/i, '');
+    const filename = `${stem}-reference.${ext}`;
+    const previous = board.layers && board.layers.reference && board.layers.reference.url;
+    if (previous && previous !== filename && util.isSafeFilename(previous)) await fsp.rm(path.join(imgDir, previous), { force: true });
+    await fsp.writeFile(path.join(imgDir, filename), buffer);
+    board.layers = board.layers || {};
+    board.layers.reference = { ...(board.layers.reference || {}), url: filename, opacity: 1 };
+    board.lastEdited = Date.now();
+    await this.write(id, data);
+    return board;
+  }
+
   /**
    * payload = {
    *   layers: { pencil: 'data:image/png;base64,...', ... },   // dirty layers only

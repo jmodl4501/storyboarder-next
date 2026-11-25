@@ -23,6 +23,7 @@
  */
 
 const { parseYouTube } = require('./linkPreview');
+const { looksLikeStoryboardMarkdown, parseStoryboardMarkdown } = require('./markdownImport');
 
 const SHOT_TYPE_ALIASES = {
   EWS: ['ews', 'extremewide', 'extremewideshot', 'extremelongshot', 'els', 'establishing', 'establishingshot', 'xws', '익스트림와이드', '설정샷', '익스트림롱샷'],
@@ -164,6 +165,7 @@ function tc(sec) {
 function detectFormat(text) {
   const t = String(text || '').trim();
   if (!t) return 'empty';
+  if (looksLikeStoryboardMarkdown(t)) return 'storyboard-markdown';
   if (/^WEBVTT/i.test(t)) return 'vtt';
   if (/^\d+\s*\r?\n\d{2}:\d{2}:\d{2}[,.]\d{3}\s*-->/m.test(t)) return 'srt';
   if (t.startsWith('{') || t.startsWith('[')) return 'json';
@@ -379,12 +381,13 @@ function parse(input) {
   const text = String(input || '');
   const format = detectFormat(text);
   switch (format) {
+    case 'storyboard-markdown': return parseStoryboardMarkdown(text);
     case 'json': return parseJson(text);
     case 'scenedetect-csv': return parseSceneDetectCsv(text);
     case 'srt':
     case 'vtt': return parseSubtitles(text, format);
     case 'empty': throw Object.assign(new Error('empty input'), { status: 400 });
-    default: throw Object.assign(new Error('unrecognized format: expected analysis JSON, PySceneDetect CSV, SRT or WebVTT'), { status: 400 });
+    default: throw Object.assign(new Error('unrecognized format: expected storyboard Markdown, analysis JSON, PySceneDetect CSV, SRT or WebVTT'), { status: 400 });
   }
 }
 
@@ -437,7 +440,7 @@ function buildLink(meta, startSeconds, label) {
 /**
  * @returns {{boards: object[], summary: object}}
  */
-const SHOT_DEFAULTS = { id: '', description: '', visual: '', shotType: '', shotTypeRaw: '', cameraMove: '', moveRaw: '', mood: '', location: '', timeOfDay: '', thumbnail: '', thumbnails: [], transcriptText: '', objects: [], actions: [], tags: [], transcriptIds: [], audioEvents: [] };
+const SHOT_DEFAULTS = { id: '', description: '', visual: '', notes: '', shotType: '', shotTypeRaw: '', cameraMove: '', moveRaw: '', mood: '', location: '', timeOfDay: '', thumbnail: '', thumbnails: [], transcriptText: '', objects: [], actions: [], tags: [], transcriptIds: [], audioEvents: [] };
 
 function toBoards(parsed, { defaultBoardTiming = 2000, maxBoards = 500 } = {}) {
   const meta = (parsed && parsed.meta) || {};
@@ -457,6 +460,7 @@ function toBoards(parsed, { defaultBoardTiming = 2000, maxBoards = 500 } = {}) {
       if (s.actions.length) noteParts.push(`행동: ${s.actions.join(', ')}`);
       if (s.mood) noteParts.push(`분위기: ${s.mood}`);
       if (s.audioEvents.length) noteParts.push(`오디오: ${s.audioEvents.join(', ')}`);
+      if (s.notes) noteParts.push(s.notes);
       const durationMs = s.startTime != null && s.endTime != null && s.endTime > s.startTime ? Math.max(100, Math.round((s.endTime - s.startTime) * 1000)) : defaultBoardTiming;
       const link = buildLink(meta, s.startTime, label(s));
       boards.push({

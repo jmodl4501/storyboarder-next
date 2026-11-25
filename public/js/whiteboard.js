@@ -10,6 +10,7 @@
 import { api } from './api.js';
 import { el, debounce, thumbnailName } from './util.js';
 import { modal, promptDialog, toast, isModalOpen } from './ui.js';
+import { shortcutMatches } from './shortcuts.js';
 
 const NOTE_COLORS = ['#FFE08A', '#FFB4A2', '#BDE0FE', '#CDEAC0', '#E4C1F9', '#F1F1F1'];
 const FRAME_COLORS = ['#7C9CFF', '#FF7A4A', '#3DDC84', '#FFC857', '#C77DFF', '#9AA0A6'];
@@ -1569,7 +1570,6 @@ export class Whiteboard {
 
   onKeyDown(e) {
     if (!this.active || isModalOpen()) return;
-    const mod = e.ctrlKey || e.metaKey;
     if (this.isTyping()) return;
     if (e.code === 'Space' && !e.repeat) {
       e.preventDefault();
@@ -1577,52 +1577,37 @@ export class Whiteboard {
       this.updateModeUI();
       return;
     }
-    if (mod && e.key.toLowerCase() === 'z') {
-      e.preventDefault();
-      e.shiftKey ? this.redo() : this.undo();
+    if (shortcutMatches(e, 'wbUndo')) { e.preventDefault(); this.undo(); return; }
+    if (shortcutMatches(e, 'wbRedo')) { e.preventDefault(); this.redo(); return; }
+    if (shortcutMatches(e, 'wbSelectAll')) { e.preventDefault(); this.select(this.data.nodes.map((n) => n.id)); return; }
+    if (shortcutMatches(e, 'wbDuplicate')) { e.preventDefault(); this.duplicateSelection(); return; }
+    if (shortcutMatches(e, 'wbZoom100')) { e.preventDefault(); this.setZoom(1); return; }
+    if (shortcutMatches(e, 'wbZoomIn')) { e.preventDefault(); this.zoomBy(1.25); return; }
+    if (shortcutMatches(e, 'wbZoomOut')) { e.preventDefault(); this.zoomBy(1 / 1.25); return; }
+    if (shortcutMatches(e, 'wbSearch')) { e.preventDefault(); this.searchInput.focus(); return; }
+    const step = e.shiftKey ? 40 : GRID;
+    if (e.key === 'Escape') {
+      if (this.interactive) this.setInteractive(null); else if (this.mode !== 'select') this.setMode('select'); else this.clearSelection();
       return;
     }
-    if (mod && e.key.toLowerCase() === 'y') { e.preventDefault(); this.redo(); return; }
-    if (mod && e.key.toLowerCase() === 'a') { e.preventDefault(); this.select(this.data.nodes.map((n) => n.id)); return; }
-    if (mod && e.key.toLowerCase() === 'd') { e.preventDefault(); this.duplicateSelection(); return; }
-    if (mod && e.key === '0') { e.preventDefault(); this.setZoom(1); return; }
-    if (mod && (e.key === '=' || e.key === '+')) { e.preventDefault(); this.zoomBy(1.25); return; }
-    if (mod && e.key === '-') { e.preventDefault(); this.zoomBy(1 / 1.25); return; }
-    if (mod && e.key.toLowerCase() === 'f') { e.preventDefault(); this.searchInput.focus(); return; }
-    if (mod) return;
-    const step = e.shiftKey ? 40 : GRID;
-    switch (e.key) {
-      case 'Escape':
-        if (this.interactive) this.setInteractive(null);
-        else if (this.mode !== 'select') this.setMode('select');
-        else this.clearSelection();
-        return;
-      case 'Delete':
-      case 'Backspace': e.preventDefault(); this.deleteSelection(); return;
-      case 'ArrowLeft': e.preventDefault(); this.nudge(-step, 0); return;
-      case 'ArrowRight': e.preventDefault(); this.nudge(step, 0); return;
-      case 'ArrowUp': e.preventDefault(); this.nudge(0, -step); return;
-      case 'ArrowDown': e.preventDefault(); this.nudge(0, step); return;
-      case 'Enter': {
-        const one = this.selectedNodes();
-        if (one.length === 1 && (one[0].type === 'note' || one[0].type === 'text')) { e.preventDefault(); this.startEdit(one[0]); }
-        return;
-      }
-      case '+':
-      case '=': this.zoomBy(1.25); return;
-      case '-': this.zoomBy(1 / 1.25); return;
-      case '!': this.fitAll(); return;
-      case '@': this.fitSelection(); return;
-      default: break;
+    if (e.key === 'Enter') {
+      const one = this.selectedNodes();
+      if (one.length === 1 && (one[0].type === 'note' || one[0].type === 'text')) { e.preventDefault(); this.startEdit(one[0]); }
+      return;
     }
-    const k = e.key.toLowerCase();
-    if (k === 'v') this.setMode('select');
-    else if (k === 'h') this.setMode('hand');
-    else if (k === 'n') this.setMode('note');
-    else if (k === 't') this.setMode('text');
-    else if (k === 'f') this.setMode('frame');
-    else if (k === 'c') this.setMode('connect');
-    else if (k === '1' && e.shiftKey) this.fitAll();
+    if (shortcutMatches(e, 'wbDelete')) { e.preventDefault(); this.deleteSelection(); return; }
+    if (shortcutMatches(e, 'wbNudgeLeft', { ignoreShift: true })) { e.preventDefault(); this.nudge(-step, 0); return; }
+    if (shortcutMatches(e, 'wbNudgeRight', { ignoreShift: true })) { e.preventDefault(); this.nudge(step, 0); return; }
+    if (shortcutMatches(e, 'wbNudgeUp', { ignoreShift: true })) { e.preventDefault(); this.nudge(0, -step); return; }
+    if (shortcutMatches(e, 'wbNudgeDown', { ignoreShift: true })) { e.preventDefault(); this.nudge(0, step); return; }
+    if (shortcutMatches(e, 'wbFitAll')) { e.preventDefault(); this.fitAll(); return; }
+    if (shortcutMatches(e, 'wbFitSelection')) { e.preventDefault(); this.fitSelection(); return; }
+    if (shortcutMatches(e, 'wbModeSelect')) this.setMode('select');
+    else if (shortcutMatches(e, 'wbModeHand')) this.setMode('hand');
+    else if (shortcutMatches(e, 'wbModeNote')) this.setMode('note');
+    else if (shortcutMatches(e, 'wbModeText')) this.setMode('text');
+    else if (shortcutMatches(e, 'wbModeFrame')) this.setMode('frame');
+    else if (shortcutMatches(e, 'wbModeConnect')) this.setMode('connect');
   }
 }
 

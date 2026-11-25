@@ -99,6 +99,21 @@ test('board operations: add, duplicate, reorder, delete', async () => {
   assert.ok(fs.existsSync(path.join(dir, PID, 'images', first.url.replace('.png', '-posterframe.jpg'))));
   assert.ok(fs.existsSync(path.join(dir, PID, 'images', first.url.replace('.png', '-thumbnail.png'))));
   assert.ok(!fs.existsSync(path.join(dir, PID, 'images', first.url)), 'board.url file must not exist (would trigger migration in Storyboarder 1.6+)');
+  const rawRefRes = await fetch(`${base}${p}/boards/${first.uid}/reference`, {
+    method: 'POST',
+    headers: { 'content-type': 'image/jpeg' },
+    body: Buffer.from(JPG.split(',')[1], 'base64'),
+  });
+  const rawRef = await rawRefRes.json();
+  assert.equal(rawRefRes.status, 201);
+  assert.ok(rawRef.board.layers.reference.url.endsWith('-reference.jpg'));
+  assert.ok(fs.existsSync(path.join(dir, PID, 'images', rawRef.board.layers.reference.url)));
+  const badRawRef = await fetch(`${base}${p}/boards/${first.uid}/reference`, {
+    method: 'POST',
+    headers: { 'content-type': 'text/plain' },
+    body: Buffer.from('not an image'),
+  });
+  assert.equal(badRawRef.status, 415);
   const badComposite = await api('POST', `${p}/boards/${first.uid}/image`, { composite: PNG });
   assert.equal(badComposite.status, 400);
   const badThumb = await api('POST', `${p}/boards/${first.uid}/image`, { thumbnail: JPG });

@@ -1,10 +1,17 @@
-/* Whiteboard — infinite reference canvas */
+/* Whiteboard — light draw.io-style infinite canvas. */
 .whiteboard-view { position: relative; min-height: 0; }
-.wb { position: relative; width: 100%; height: 100%; overflow: hidden; --wb-dot: rgba(255, 255, 255, .09); }
+.wb {
+  position: relative; width: 100%; height: 100%; overflow: hidden; color-scheme: light;
+  --bg-0: #fff; --bg-1: #f8fafc; --bg-2: #fff; --bg-3: #f1f5f9; --bg-4: #e2e8f0;
+  --border: #e2e8f0; --border-strong: #cbd5e1; --text: #172033; --text-2: #334155; --muted: #64748b;
+  --glass-bg: rgba(255,255,255,.94); --glass-border: rgba(100,116,139,.24);
+  --shadow-1: 0 1px 2px rgba(15,23,42,.08), 0 8px 24px -12px rgba(15,23,42,.2);
+  --wb-grid: #e8edf4;
+}
 .wb-viewport {
   position: absolute; inset: 0; overflow: hidden; outline: none; touch-action: none; user-select: none; -webkit-user-select: none;
-  background-color: var(--bg-0);
-  background-image: radial-gradient(circle, var(--wb-dot) 1px, transparent 1.4px);
+  background-color: #fff;
+  background-image: linear-gradient(var(--wb-grid) 1px, transparent 1px), linear-gradient(90deg, var(--wb-grid) 1px, transparent 1px);
   cursor: default;
 }
 .wb-viewport[data-mode="hand"] { cursor: grab; }
@@ -115,7 +122,7 @@
 .wb-tool { width: 36px; height: 36px; border-radius: 10px; border: 1px solid transparent; background: transparent; color: var(--text-2); display: grid; place-items: center; transition: background var(--t-fast), color var(--t-fast); }
 .wb-tool span { display: grid; place-items: center; font-size: 15px; }
 .wb-tool svg { width: 20px; height: 20px; }
-.wb-tool:hover { background: rgba(255, 255, 255, .08); color: var(--text); }
+.wb-tool:hover { background: #eef2f7; color: var(--text); }
 .wb-tool.active { background: var(--accent-soft); color: var(--accent); border-color: rgba(255, 107, 61, .35); }
 .wb-sep { width: 1px; height: 22px; background: var(--border-strong); margin: 0 4px; }
 .wb-searchbox { position: absolute; right: 14px; top: 14px; z-index: 50; display: flex; align-items: center; gap: 6px; padding: 4px 8px 4px 4px; border-radius: 12px; }
@@ -123,19 +130,19 @@
 .wb-search-count { font-size: 11px; color: var(--accent-2); font-family: var(--mono); min-width: 16px; text-align: right; }
 .wb-zoombar { position: absolute; right: 14px; bottom: 14px; z-index: 50; display: flex; align-items: center; gap: 2px; padding: 4px; border-radius: 12px; }
 .wb-zoombar button { background: transparent; border: 0; color: var(--text-2); width: 32px; height: 30px; border-radius: 8px; font-size: 15px; }
-.wb-zoombar button:hover { background: rgba(255, 255, 255, .08); color: var(--text); }
+.wb-zoombar button:hover { background: #eef2f7; color: var(--text); }
 .wb-zoombar .wb-zoom-label { width: auto; min-width: 54px; font-family: var(--mono); font-size: 12px; }
 .wb-seltoolbar { position: absolute; left: 0; top: 0; z-index: 60; display: flex; align-items: center; gap: 2px; padding: 4px; border-radius: 12px; white-space: nowrap; max-width: calc(100% - 16px); overflow-x: auto; scrollbar-width: none; }
 .wb-seltoolbar::-webkit-scrollbar { display: none; }
 .wb-sb { background: transparent; border: 0; color: var(--text); padding: 6px 9px; border-radius: 8px; font-size: 12px; font-weight: 500; }
-.wb-sb:hover { background: rgba(255, 255, 255, .08); }
+.wb-sb:hover { background: #eef2f7; }
 .wb-sb.danger { color: var(--danger); }
 .wb-swatches { display: inline-flex; gap: 4px; padding: 0 6px; align-items: center; }
 .wb-swatch { width: 18px; height: 18px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, .25); background: var(--c); padding: 0; transition: transform var(--t-fast); }
 .wb-swatch:hover { transform: scale(1.15); border-color: #fff; }
 .wb-ctx { position: absolute; left: 0; top: 0; z-index: 70; min-width: 190px; padding: 6px; border-radius: 12px; display: flex; flex-direction: column; }
 .wb-ctx button { background: transparent; border: 0; color: var(--text); text-align: left; padding: 8px 11px; border-radius: 8px; font-size: 12.5px; }
-.wb-ctx button:hover { background: rgba(255, 255, 255, .08); }
+.wb-ctx button:hover { background: #eef2f7; }
 .wb-marquee { position: absolute; left: 0; top: 0; border: 1px solid var(--accent-2); background: rgba(124, 156, 255, .12); pointer-events: none; z-index: 40; border-radius: 3px; }
 .wb-marquee.frame { border: 1.5px dashed var(--accent); background: rgba(255, 107, 61, .08); border-radius: 12px; }
 .wb-empty { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); text-align: center; color: var(--muted); pointer-events: none; max-width: 520px; padding: 24px; }
