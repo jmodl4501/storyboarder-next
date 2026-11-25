@@ -7,6 +7,7 @@ import { openPlayer } from './player.js';
 import { Whiteboard } from './whiteboard.js';
 import { modal, confirmDialog, toast, isModalOpen } from './ui.js';
 import { openVideoImport } from './videoImport.js';
+import { SHORTCUT_ACTIONS, eventToShortcut, formatShortcut, getShortcutMap, saveShortcutMap, shortcutConflicts, shortcutFor, shortcutMatches } from './shortcuts.js';
 import {
   el, debounce, updateSceneTiming, boardDuration, totalDuration, boardImageSize, msToTimecode, msToClock,
   escapeHtml, aspectLabel, copyText, boardHasImage, boardImageName, LAYER_ORDER,
@@ -322,6 +323,7 @@ function setupEditor() {
   setupDropZone();
 
   $('btn-script').addEventListener('click', () => openScriptImport());
+  $('btn-markdown').addEventListener('click', () => openMarkdownImport());
   $('btn-analysis').addEventListener('click', () => openAnalysisImport());
   $('btn-video').addEventListener('click', () => openVideoImport({
     state,
@@ -1059,6 +1061,173 @@ function openAnalysisImport() {
   });
 }
 
+function markdownImageRefs(text) {
+  return [...String(text || '').matchAll(/!\[[^\]]*]\((?:<)?(.+?)(?:>)?\)/g)]
+    .map((match) => match[1].trim().replace(/^\.?\//, ''))
+    .filter((ref) => /\.(png|jpe?g|webp|gif)$/i.test(ref));
+}
+
+function normalizedFilePath(file) {
+  const raw = String(file.webkitRelativePath || file.name || '').replace(/\\/g, '/');
+  try { return decodeURIComponent(raw).replace(/^\.?\//, ''); } catch { return raw.replace(/^\.?\//, ''); }
+}
+
+function resolveMarkdownImage(ref, files) {
+  const raw = String(ref || '').replace(/\\/g, '/');
+  let wanted = raw;
+  try { wanted = decodeURIComponent(raw); } catch { /* literal path */ }
+  wanted = wanted.replace(/^\.?\//, '');
+  const exact = files.find((file) => {
+    const filePath = normalizedFilePath(file);
+    return filePath === wanted || filePath.endsWith(`/${wanted}`);
+  });
+  if (exact) return exact;
+  const base = wanted.split('/').pop().toLowerCase();
+  const matches = files.filter((file) => file.name.toLowerCase() === base);
+  return matches.length === 1 ? matches[0] : null;
+}
+
+function boardPreviewPayload(file, width, height) {
+  return readAsImage(file).then((img) => {
+    const scratch = new BoardSurface(width, height);
+    scratch.placeImage(img, 'reference', { clearFirst: true });
+    return { composite: scratch.exportComposite({ includeNotes: false }), thumbnail: scratch.exportThumbnail(320) };
+  });
+}
+
+async function uploadMarkdownBoardImages(uids, refs, files, { width, height, onProgress }) {
+  const jobs = uids.map((uid, index) => ({ uid, ref: refs[index], file: resolveMarkdownImage(refs[index], files) }));
+  let cursor = 0; let uploaded = 0; let missing = 0; let failed = 0;
+  const worker = async () => {
+    while (true) {
+      const index = cursor++;
+      if (index >= jobs.length) return;
+      const job = jobs[index];
+      if (!job.file) {
+        missing++;
+      } else {
+        try {
+          const payload = await boardPreviewPayload(job.file, width, height);
+          await api.uploadBoardReference(state.projectId, job.uid, job.file);
+          await api.saveBoardImage(state.projectId, job.uid, payload);
+          uploaded++;
+        } catch (err) {
+          failed++;
+          console.error(`Markdown image import failed: ${job.ref}`, err);
+        }
+      }
+      if (onProgress) onProgress(uploaded + missing + failed, jobs.length, { uploaded, missing, failed });
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(3, Math.max(1, jobs.length)) }, worker));
+  return { uploaded, missing, failed };
+}
+
+function openMarkdownImport() {
+  let markdownName = ''; let markdownText = ''; let imageFiles = []; let last = null;
+  const mdInput = el('input', { type: 'file', accept: '.md,text/markdown,text/plain', hidden: true });
+  const folderInput = el('input', { type: 'file', multiple: true, accept: 'image/*,.md', webkitdirectory: true, directory: true, hidden: true });
+  const mdButton = el('button', { class: 'btn small', text: 'Markdown 파일 선택…' });
+  const folderButton = el('button', { class: 'btn small', text: '보고서 폴더 선택…' });
+  const fileStatus = el('p', { class: 'hint', text: '제목.md와 scenes/ 폴더가 들어 있는 보고서 폴더를 선택하면 한 번에 연결됩니다.' });
+  const drop = el('div', { class: 'import-drop markdown-drop' }, [
+    el('span', { text: '보고서 폴더 또는 .md + 장면 이미지를 여기에 드롭' }),
+    el('span', { class: 'btn-row' }, [mdButton, folderButton, mdInput, folderInput]),
+  ]);
+  const preview = el('div', { class: 'import-preview' }, [el('p', { class: 'hint', text: '장면 제목·시간·화면 설명·분석·한/영 대사를 보드 필드로 옮기고, scenes 캡처는 reference 레이어에 넣습니다.' })]);
+  const progress = el('div', { class: 'markdown-progress', hidden: true }, [el('div', { class: 'vi-bar' }, [el('i')]), el('span', { class: 'hint' })]);
+  const optWb = el('input', { type: 'checkbox', checked: true });
+  const optAfter = el('input', { type: 'checkbox', checked: true });
+  const updateStatus = () => {
+    const refs = markdownImageRefs(markdownText);
+    const matched = refs.filter((ref) => resolveMarkdownImage(ref, imageFiles)).length;
+    fileStatus.textContent = markdownText ? `${markdownName || 'Markdown'} · 장면 이미지 참조 ${refs.length}개 · 선택한 이미지 ${imageFiles.length}개 · 연결 ${matched}개` : `Markdown 미선택 · 선택한 이미지 ${imageFiles.length}개`;
+  };
+  const doPreview = debounce(async () => {
+    updateStatus();
+    if (!markdownText.trim()) { last = null; return; }
+    try {
+      last = await api.previewAnalysis({ text: markdownText, defaultBoardTiming: state.project.defaultBoardTiming });
+      const summary = last.summary;
+      preview.innerHTML = '';
+      const stat = (value, label) => el('div', { class: 'stat' }, [el('b', { text: String(value) }), el('span', { text: label })]);
+      const refs = markdownImageRefs(markdownText);
+      const matched = refs.filter((ref) => resolveMarkdownImage(ref, imageFiles)).length;
+      preview.append(el('div', { class: 'import-summary' }, [stat(summary.boards, '보드 생성'), stat(msToClock(summary.totalMs), '총 길이'), stat(`${matched}/${refs.length}`, '이미지 연결')]));
+      preview.append(el('p', { class: 'hint', text: [summary.title, summary.sourceUrl, summary.fps && `${summary.fps} fps`].filter(Boolean).join(' · ') }));
+      for (const warning of last.warnings || []) preview.append(el('p', { class: 'import-warn', text: `⚠ ${warning}` }));
+      if (refs.length && matched < refs.length) preview.append(el('p', { class: 'import-warn', text: `⚠ 장면 이미지 ${refs.length - matched}개를 아직 찾지 못했습니다. 보고서 폴더를 선택하면 자동 연결됩니다.` }));
+      if (summary.truncated) preview.append(el('p', { class: 'import-warn', text: '⚠ 500개가 넘는 장면은 잘렸습니다.' }));
+      const rows = last.boards.slice(0, 30).map((board, index) => el('tr', {}, [
+        el('td', { text: String(index + 1) }), el('td', { text: msToClock(board.duration) }),
+        el('td', { text: board.action, title: board.action }), el('td', { text: board.dialogue, title: board.dialogue }),
+      ]));
+      preview.append(el('div', { class: 'import-table' }, [el('table', {}, [
+        el('thead', {}, [el('tr', {}, ['#', '길이', '화면/액션', '대사'].map((heading) => el('th', { text: heading })))]),
+        el('tbody', {}, rows),
+      ])]));
+    } catch (err) {
+      last = null; preview.innerHTML = ''; preview.append(el('p', { class: 'import-warn', text: `Markdown 인식 실패: ${err.message}` }));
+    }
+  }, 250);
+  const useFiles = async (files) => {
+    const list = [...files];
+    const md = list.find((file) => /\.md$/i.test(file.name));
+    if (md) { markdownName = md.name; markdownText = await md.text(); }
+    const images = list.filter((file) => /^image\//.test(file.type) || /\.(png|jpe?g|webp|gif)$/i.test(file.name));
+    if (images.length) imageFiles = images;
+    updateStatus(); doPreview();
+  };
+  mdButton.addEventListener('click', () => mdInput.click());
+  folderButton.addEventListener('click', () => folderInput.click());
+  mdInput.addEventListener('change', () => useFiles(mdInput.files));
+  folderInput.addEventListener('change', () => useFiles(folderInput.files));
+  ['dragenter', 'dragover'].forEach((type) => drop.addEventListener(type, (event) => { event.preventDefault(); drop.classList.add('over'); }));
+  drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+  drop.addEventListener('drop', (event) => { event.preventDefault(); drop.classList.remove('over'); useFiles(event.dataTransfer.files); });
+  const body = el('div', { class: 'import-grid' }, [
+    el('div', {}, [drop, fileStatus, progress]),
+    el('div', {}, [preview, el('div', { class: 'form-stack', style: 'margin-top:12px' }, [
+      el('label', { class: 'check' }, [optAfter, el('span', { text: ' 현재 보드 뒤에 삽입 (해제하면 맨 뒤)' })]), el('br'),
+      el('label', { class: 'check', style: 'margin-top:6px' }, [optWb, el('span', { text: ' 화이트보드에도 장면 카드 프레임 추가' })]),
+    ])]),
+  ]);
+  modal({
+    title: 'Markdown 스토리보드 → 보드', body, size: 'wide', closeOnBackdrop: false,
+    actions: [{ label: '취소' }, {
+      label: '스토리보드 가져오기', primary: true,
+      onClick: async (close, { button }) => {
+        if (!last || !markdownText.trim()) { toast('먼저 장면 분석 Markdown을 선택해 주세요', 'error'); return false; }
+        button.textContent = '보드 만드는 중…';
+        await flushAll();
+        try {
+          const result = await api.importAnalysis(state.projectId, { text: markdownText, afterUid: optAfter.checked ? currentBoard().uid : undefined, addToWhiteboard: optWb.checked });
+          const refs = markdownImageRefs(markdownText).slice(0, result.created.length);
+          let imageResult = { uploaded: 0, missing: refs.length, failed: 0 };
+          if (refs.length) {
+            const [width, height] = boardImageSize(state.project);
+            progress.hidden = false;
+            imageResult = await uploadMarkdownBoardImages(result.created, refs, imageFiles, {
+              width, height,
+              onProgress: (done, total, counts) => {
+                progress.querySelector('i').style.width = `${Math.round((done / total) * 100)}%`;
+                progress.querySelector('span').textContent = `이미지 ${done}/${total} · 연결 ${counts.uploaded} · 없음 ${counts.missing} · 실패 ${counts.failed}`;
+              },
+            });
+          }
+          if (optWb.checked) state.wbLoadedFor = null;
+          const fresh = await api.getProject(state.projectId);
+          await adoptProject(fresh.project || fresh, { selectUid: result.created[0] });
+          close();
+          toast(`${result.created.length}개 보드 · 이미지 ${imageResult.uploaded}개를 가져왔습니다${imageResult.missing ? ` · 누락 ${imageResult.missing}` : ''}${imageResult.failed ? ` · 실패 ${imageResult.failed}` : ''}`, imageResult.failed ? 'error' : 'ok', 5000);
+        } catch (err) {
+          button.textContent = '스토리보드 가져오기'; toast(`Markdown을 가져오지 못했습니다: ${err.message}`, 'error', 5000); return false;
+        }
+      },
+    }],
+  });
+}
+
 const SAMPLE_SCRIPT = `S#1. 옥상 - 해질녘
 
 도시의 스카이라인 위로 노을이 번진다. 민지가 난간에 기대어 서 있다.
@@ -1099,6 +1268,49 @@ async function openExport() {
   modal({ title: '내보내기', body: list });
 }
 
+function buildShortcutEditor() {
+  let draft = getShortcutMap();
+  const table = el('div', { class: 'shortcut-grid' });
+  const warning = el('p', { class: 'shortcut-warning hint' });
+  const buttons = new Map();
+  const refresh = () => {
+    for (const action of SHORTCUT_ACTIONS) if (buttons.get(action.id)) buttons.get(action.id).textContent = formatShortcut(draft[action.id]);
+    const conflicts = shortcutConflicts(draft);
+    const conflictIds = new Set(conflicts.flatMap(([a, b]) => [a, b]));
+    for (const [id, button] of buttons) button.classList.toggle('conflict', conflictIds.has(id));
+    warning.textContent = conflicts.length ? `겹치는 단축키 ${conflicts.length}개: ${conflicts.map((x) => formatShortcut(x[2])).join(', ')}` : '버튼을 누른 뒤 새 키 조합을 입력하세요. Backspace는 해제입니다.';
+    warning.classList.toggle('error', !!conflicts.length);
+  };
+  let scope = '';
+  for (const action of SHORTCUT_ACTIONS) {
+    if (action.scope !== scope) {
+      scope = action.scope;
+      table.append(el('h4', { class: 'shortcut-scope', text: { global: '전역', boards: '보드 에디터', whiteboard: '화이트보드' }[scope] }));
+    }
+    const button = el('button', { type: 'button', class: 'shortcut-key' });
+    const clear = el('button', { type: 'button', class: 'shortcut-clear', text: '×' });
+    buttons.set(action.id, button);
+    button.addEventListener('click', () => {
+      button.textContent = '키 입력…'; button.classList.add('capturing');
+      const capture = (event) => {
+        if (['Control', 'Meta', 'Alt', 'Shift'].includes(event.key)) return;
+        event.preventDefault(); event.stopImmediatePropagation(); document.removeEventListener('keydown', capture, true); button.classList.remove('capturing');
+        draft[action.id] = event.key === 'Backspace' ? '' : eventToShortcut(event); refresh();
+      };
+      document.addEventListener('keydown', capture, true);
+    });
+    clear.addEventListener('click', () => { draft[action.id] = ''; refresh(); });
+    table.append(el('div', { class: 'shortcut-row' }, [el('span', { class: 'shortcut-label', text: action.label }), button, clear]));
+  }
+  const reset = el('button', { type: 'button', class: 'btn small ghost', text: '기본값으로 되돌리기' });
+  reset.addEventListener('click', () => { draft = Object.fromEntries(SHORTCUT_ACTIONS.map((a) => [a.id, a.default])); refresh(); });
+  refresh();
+  return {
+    element: el('section', { class: 'insp-section shortcut-settings' }, [el('h3', { text: '단축키' }), el('details', {}, [el('summary', { text: '단축키 편집 열기' }), warning, table, el('div', { class: 'btn-row' }, [reset])])]),
+    save: () => { if (shortcutConflicts(draft).length) return false; saveShortcutMap(draft); return true; },
+  };
+}
+
 async function openSettings() {
   const p = state.project;
   const title = el('input', { value: p.ext.title || '' });
@@ -1107,6 +1319,7 @@ async function openSettings() {
   const style = el('textarea', { rows: 2 }, [p.ext.style || '']);
   const touch = el('input', { type: 'checkbox' });
   touch.checked = editor.touchDraw;
+  const shortcutEditor = buildShortcutEditor();
   let ai = state.meta.ai;
   try {
     ai = await api.aiStatus();
@@ -1125,6 +1338,7 @@ async function openSettings() {
     el('label', { text: '비주얼 스타일 (모든 프롬프트에 포함)' }, [style]),
     el('label', { class: 'check' }, [touch, ' 터치(손가락)로도 그리기 — 끄면 펜/마우스만 그려집니다']),
     el('p', { class: 'muted', text: `화면비 ${aspectLabel(p.aspectRatio)} · 이미지 ${surface.width}×${surface.height} · 폴더 projects/${state.projectId}` }),
+    shortcutEditor.element,
     el('section', { class: 'insp-section' }, [el('h3', { text: 'AI 연결 상태 (.env 로 설정, 서버 재시작 필요)' }), status, el('p', { class: 'hint', text: '자세한 설정은 docs/AI_INTEGRATION.md 를 보세요.' })]),
     el('section', { class: 'insp-section' }, [
       el('h3', { text: 'Danger zone' }),
@@ -1140,12 +1354,14 @@ async function openSettings() {
   modal({
     title: '프로젝트 설정',
     body,
+    size: 'wide',
     actions: [
       { label: '취소' },
       {
         label: '저장',
         primary: true,
         onClick: () => {
+          if (!shortcutEditor.save()) { toast('겹치는 단축키를 먼저 수정해 주세요', 'error'); return false; }
           p.ext.title = title.value.trim();
           p.fps = Number(fps.value);
           p.defaultBoardTiming = Math.max(100, Number(timing.value) || 2000);
@@ -1163,41 +1379,18 @@ async function openSettings() {
 }
 
 function openHelp() {
-  const rows = [
-    ['1 – 6', '연한 연필 · 연필 · 펜 · 브러시 · 노트 펜 · 지우개'],
-    ['[ / ]', '브러시 작게 / 크게'],
-    ['Shift + 드래그', '직선'],
-    ['Alt + 클릭', '스포이드 (캔버스 색 추출)'],
-    ['Ctrl/⌘ + Z · Shift+Z / Y', '실행 취소 · 다시 실행'],
-    ['Delete / Backspace', '현재 도구 레이어 지우기'],
-    ['← / →', '이전 / 다음 보드'],
-    ['N · D · Shift+Delete', '새 보드 · 복제 · 보드 삭제'],
-    ['G · C · T · O', '그리드 · 센터 · 3분할 · 어니언 스킨'],
-    ['Space', '재생'],
-    ['Ctrl/⌘ + S', '지금 저장 (자동 저장도 됩니다)'],
-    ['Ctrl/⌘ + 1 · 2', '보드 에디터 · 화이트보드 전환'],
-    ['Esc', '창 닫기'],
-  ];
-  const wbRows = [
-    ['Ctrl+V · 드래그 앤 드롭', '이미지/영상 파일, 이미지 주소, YouTube·Vimeo·웹 URL, 텍스트 → 노드'],
-    ['휠 · Ctrl+휠 · Space+드래그', '이동 · 커서 기준 확대/축소 · 손 도구로 이동 (트랙패드 핀치 가능)'],
-    ['V · H · N · T · F · C', '선택 · 손 · 노트 · 텍스트 · 프레임 · 연결선'],
-    ['더블클릭', '빈 곳: 메모 / 노트·텍스트: 편집 / 임베드·영상: 재생 / 보드 카드: 보드 열기 / 이미지: 크게 보기'],
-    ['Shift + 드래그 (모서리)', '비율 무시하고 크기 조절 (이미지·영상은 기본 비율 고정)'],
-    ['Ctrl+A · Ctrl+D · Delete', '전체 선택 · 복제 · 삭제'],
-    ['← ↑ → ↓ (+Shift)', '선택 항목 미세 이동'],
-    ['+ / − · Ctrl+0 · Shift+1 · Shift+2', '확대/축소 · 100% · 전체 보기 · 선택 항목 보기'],
-    ['Ctrl+F', '화이트보드 검색 (제목 · 메모 · 태그 · URL)'],
-  ];
-  const table = el('table', {}, rows.map(([k, v]) => el('tr', {}, [el('td', {}, [el('kbd', { text: k })]), el('td', { text: v })])));
-  const wbTable = el('table', {}, wbRows.map(([k, v]) => el('tr', {}, [el('td', {}, [el('kbd', { text: k })]), el('td', { text: v })])));
+  const tableFor = (scopes) => el('table', {}, SHORTCUT_ACTIONS.filter((a) => scopes.includes(a.scope)).map((a) => el('tr', {}, [
+    el('td', {}, [el('kbd', { text: formatShortcut(shortcutFor(a.id)) })]), el('td', { text: a.label }),
+  ])));
+  const table = tableFor(['global', 'boards']);
+  const wbTable = tableFor(['whiteboard']);
   modal({
     title: '단축키',
     size: 'wide',
     body: el('div', {}, [
       el('h3', { text: '보드 에디터', style: 'margin:0 0 8px;font-size:13px' }), table,
       el('h3', { text: '화이트보드', style: 'margin:18px 0 8px;font-size:13px' }), wbTable,
-      el('p', { class: 'hint', text: '같은 Wi-Fi 의 iPad/태블릿 브라우저에서 서버 주소로 접속하면 펜 필압이 적용된 채로 그릴 수 있습니다.' }),
+      el('p', { class: 'hint', text: '설정 → 단축키에서 바꿀 수 있습니다. Space+드래그, 휠, 더블클릭, Esc는 고정입니다.' }),
     ]),
   });
 }
@@ -1212,59 +1405,40 @@ function play() {
 /* ========================================================================== */
 
 function installShortcuts() {
-  const toolKeys = { 1: 'light-pencil', 2: 'pencil', 3: 'pen', 4: 'brush', 5: 'note-pen', 6: 'eraser' };
+  const tools = { toolLightPencil: 'light-pencil', toolPencil: 'pencil', toolPen: 'pen', toolBrush: 'brush', toolNotePen: 'note-pen', toolEraser: 'eraser' };
   window.addEventListener('keydown', (e) => {
     if (!state.project || $('screen-editor').hidden) return;
     const t = e.target;
     const typing = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);
-    const mod = e.ctrlKey || e.metaKey;
-    if (mod && e.key.toLowerCase() === 's') {
+    if (shortcutMatches(e, 'save')) {
       e.preventDefault();
       Promise.all([flushAll(), whiteboard.flush()]).then(() => toast('저장했습니다', 'ok'));
       return;
     }
-    if (mod && !e.shiftKey && (e.key === '1' || e.key === '2') && !isModalOpen()) {
+    if (shortcutMatches(e, 'viewBoards') && !isModalOpen()) {
       e.preventDefault();
-      setView(e.key === '1' ? 'boards' : 'whiteboard');
-      return;
+      setView('boards'); return;
     }
+    if (shortcutMatches(e, 'viewWhiteboard') && !isModalOpen()) { e.preventDefault(); setView('whiteboard'); return; }
+    if (shortcutMatches(e, 'help') && !isModalOpen()) { e.preventDefault(); openHelp(); return; }
     if (state.view === 'whiteboard') return; // the whiteboard has its own key handling
     if (typing || isModalOpen()) return;
-    if (mod && e.key.toLowerCase() === 'z') {
-      e.preventDefault();
-      e.shiftKey ? editor.redo() : editor.undo();
-      return;
-    }
-    if (mod && e.key.toLowerCase() === 'y') {
-      e.preventDefault();
-      editor.redo();
-      return;
-    }
-    if (mod) return;
-    switch (e.key) {
-      case 'ArrowLeft': e.preventDefault(); selectBoard(state.current - 1); break;
-      case 'ArrowRight': e.preventDefault(); selectBoard(state.current + 1); break;
-      case 'Delete':
-      case 'Backspace':
-        e.preventDefault();
-        if (e.shiftKey) deleteBoard();
-        else clearLayer();
-        break;
-      case ' ': e.preventDefault(); play(); break;
-      case '[': editor.setSizeIndex(editor.sizeIndex - 1); break;
-      case ']': editor.setSizeIndex(editor.sizeIndex + 1); break;
-      case '?': openHelp(); break;
-      default: {
-        const k = e.key.toLowerCase();
-        if (toolKeys[k]) editor.setTool(toolKeys[k]);
-        else if (k === 'n') addBoard();
-        else if (k === 'd') duplicateBoard();
-        else if (k === 'g') editor.setGuide('grid');
-        else if (k === 'c') editor.setGuide('center');
-        else if (k === 't') editor.setGuide('thirds');
-        else if (k === 'o') toggleOnion();
-      }
-    }
+    if (shortcutMatches(e, 'undo')) { e.preventDefault(); editor.undo(); return; }
+    if (shortcutMatches(e, 'redo')) { e.preventDefault(); editor.redo(); return; }
+    if (shortcutMatches(e, 'previousBoard')) { e.preventDefault(); selectBoard(state.current - 1); return; }
+    if (shortcutMatches(e, 'nextBoard')) { e.preventDefault(); selectBoard(state.current + 1); return; }
+    if (shortcutMatches(e, 'deleteBoard')) { e.preventDefault(); deleteBoard(); return; }
+    if (shortcutMatches(e, 'clearLayer')) { e.preventDefault(); clearLayer(); return; }
+    if (shortcutMatches(e, 'play')) { e.preventDefault(); play(); return; }
+    if (shortcutMatches(e, 'brushSmaller')) { e.preventDefault(); editor.setSizeIndex(editor.sizeIndex - 1); return; }
+    if (shortcutMatches(e, 'brushLarger')) { e.preventDefault(); editor.setSizeIndex(editor.sizeIndex + 1); return; }
+    for (const [action, tool] of Object.entries(tools)) if (shortcutMatches(e, action)) { e.preventDefault(); editor.setTool(tool); return; }
+    if (shortcutMatches(e, 'newBoard')) { e.preventDefault(); addBoard(); return; }
+    if (shortcutMatches(e, 'duplicateBoard')) { e.preventDefault(); duplicateBoard(); return; }
+    if (shortcutMatches(e, 'guideGrid')) { e.preventDefault(); editor.setGuide('grid'); return; }
+    if (shortcutMatches(e, 'guideCenter')) { e.preventDefault(); editor.setGuide('center'); return; }
+    if (shortcutMatches(e, 'guideThirds')) { e.preventDefault(); editor.setGuide('thirds'); return; }
+    if (shortcutMatches(e, 'onionSkin')) { e.preventDefault(); toggleOnion(); }
   });
 }
 

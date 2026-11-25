@@ -351,7 +351,22 @@ body:has(.editor:not([hidden]):not(.view-whiteboard)) #toast-root { bottom: calc
 .import-table table { font-size: 11.5px; }
 .import-table td { white-space: nowrap; max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
 .import-warn { color: var(--warn); font-size: 12px; margin: 6px 0; }
+.markdown-drop .btn-row { margin: 0; }
+.markdown-progress { margin-top: 12px; }
 @media (max-width: 760px) { .import-grid { grid-template-columns: 1fr; } }
+
+.shortcut-settings details { margin-top: 8px; }
+.shortcut-settings summary { cursor: pointer; color: var(--text-2); font-weight: 600; }
+.shortcut-warning.error { color: var(--danger); }
+.shortcut-grid { display: grid; grid-template-columns: minmax(150px, 1fr) minmax(130px, 180px) 30px; gap: 5px 8px; align-items: center; margin: 10px 0; }
+.shortcut-scope { grid-column: 1 / -1; margin: 12px 0 2px; padding-bottom: 5px; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--muted); text-transform: uppercase; }
+.shortcut-row { display: contents; }
+.shortcut-label { color: var(--text-2); font-size: 12px; }
+.shortcut-key { min-height: 30px; border: 1px solid var(--border-strong); border-radius: 7px; background: var(--bg-0); color: var(--text); font-family: var(--mono); font-size: 11.5px; padding: 4px 8px; }
+.shortcut-key.capturing { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); color: var(--accent); }
+.shortcut-key.conflict { border-color: var(--danger); color: var(--danger); }
+.shortcut-clear { width: 28px; height: 28px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); }
+.shortcut-clear:hover { background: var(--bg-4); color: var(--danger); }
 
 @media (max-width: 1100px) { :root { --inspector-w: 300px; } }
 @media (max-width: 860px) {

@@ -15,6 +15,13 @@
 
 ![editor](docs/img/editor.jpg)
 
+## v0.4 — 분석 Markdown → 스토리보드
+
+- `가져오기 ▾ → Markdown 스토리보드 → 보드`: `### 장면` Markdown + `scenes/` 캡처를 시간·화면·분석·한/영 대사·reference 레이어로 가져옵니다.
+- 화이트보드는 흰색 격자의 draw.io 스타일입니다.
+- `설정 → 단축키`에서 전역·보드·화이트보드 키를 재지정하고 충돌을 검사합니다.
+- `.devcontainer/`로 Codespaces 포트 3000이 자동 실행됩니다.
+
 ## v0.3 에서 새로 된 것 — 영상 → 장면별 스토리보드
 
 | 영역 | 기능 |
@@ -62,6 +69,8 @@ git clone <this repo> && cd storyboarder-next
 npm install            # 의존성은 express 하나뿐
 npm start              # http://localhost:3000
 ```
+
+GitHub Codespaces에서는 **Code → Codespaces → Create codespace**를 누르면 의존성 설치와 포트 3000 실행이 자동으로 끝납니다.
 
 - 샘플 프로젝트 `projects/sample-rooftop` 이 포함되어 있어 바로 눌러볼 수 있습니다(보드 8개 + 레퍼런스 화이트보드).
 - 영상 분석 결과 가져오기는 `가져오기 ▾ → 영상 분석 결과 → 보드 → 예시 JSON 넣기` 로 분석기 없이도 바로 체험할 수 있습니다.
